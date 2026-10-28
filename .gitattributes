@@ -1,0 +1,8 @@
+# Line endings are a property of this repository, not of each contributor's
+# git config. The harness hashes generated files to decide whether two runs are
+# comparable, so a CRLF committed from Windows must not read as a different
+# dataset in CI on Linux.
+* text=auto eol=lf
+
+# Golden datasets are compared byte-for-byte; never let git touch them.
+*.jsonl text eol=lf
