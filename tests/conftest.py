@@ -13,6 +13,25 @@ import httpx
 import pytest
 
 from slmeval.cli.commands.init_cmd import scaffold
+from slmeval.sandbox.tool import REGISTRY
+
+
+@pytest.fixture(autouse=True)
+def isolated_tool_registry() -> Iterator[None]:
+    """Restore the sandboxed-tool registry around every test.
+
+    `@sandbox_tool` registers by name at import time, into one process-wide
+    registry, and registering two different functions under one name is a hard
+    error - cassettes are keyed by tool name, so a silent collision would have
+    two tools answering each other's recordings. That check is right, which
+    means any test module that declares or imports a tool called `fetch_order`
+    would otherwise poison every module after it. Snapshotting here, rather
+    than in each file, is what keeps that from being a trap for the next test.
+    """
+    saved = dict(REGISTRY)
+    yield
+    REGISTRY.clear()
+    REGISTRY.update(saved)
 
 
 @pytest.fixture(autouse=True)

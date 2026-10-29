@@ -23,6 +23,7 @@ from rich.text import Text
 
 from slmeval.doctor import Check, Status
 from slmeval.errors import SlmevalError
+from slmeval.sandbox.diagnosis import MissDiagnosis, Verdict
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,46 @@ def render_error(err: SlmevalError, *, ascii_mode: bool | None = None) -> None:
         out.print()
         out.print(Text(f"  hint: {err.hint}", style="cyan"))
     out.print()
+
+
+VERDICT_STYLE = {
+    Verdict.HALLUCINATED_PARAMETER: "red",
+    Verdict.HALLUCINATED_TOOL: "red",
+    Verdict.WRONG_TOOL_FOR_STEP: "yellow",
+    # Not red, and that is the point: an uncovered path is a gap in our
+    # coverage, not a model failure, and colouring it like one would undo the
+    # whole distinction the diagnosis exists to draw.
+    Verdict.UNRECORDED_VALID_PATH: "cyan",
+}
+
+
+def render_miss(diagnosis: MissDiagnosis, *, ascii_mode: bool | None = None) -> Text:
+    """The cassette-miss diagnosis block, coloured for a terminal.
+
+    The layout comes from :meth:`MissDiagnosis.render` rather than being
+    rebuilt here, so the block a user screenshots from the terminal and the one
+    they paste out of a CI log are the same block. This function only adds
+    style, line by line.
+    """
+    if ascii_mode is None:
+        ascii_mode = not supports_unicode()
+    accent = VERDICT_STYLE[diagnosis.verdict]
+    out = Text()
+    lines = diagnosis.render(ascii_mode=ascii_mode).split("\n")
+    for index, line in enumerate(lines):
+        stripped = line.lstrip()
+        if index == 0 or stripped.startswith("verdict:"):
+            style = f"bold {accent}"
+        elif stripped.startswith(("diff:", "nearest recorded:", "did you mean:")):
+            style = "yellow"
+        elif stripped.startswith("called with:"):
+            style = "bold"
+        else:
+            style = "dim"
+        out.append(line, style=style)
+        if index < len(lines) - 1:
+            out.append("\n")
+    return out
 
 
 def _source_lines(path: Path | None) -> list[str]:

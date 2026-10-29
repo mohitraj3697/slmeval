@@ -120,7 +120,24 @@ class ToolCallTrace:
     cassette_key: str | None = None
     outcome: str = "live"
     """live | replayed | recorded | miss | fault"""
+    match_tier: str | None = None
+    """Which rung of the cassette cascade answered: exact | normalized | subset.
+    Anything but `exact` is a Tier-1 finding - the model reached the recorded
+    call, but not with the recorded arguments - so it is reported rather than
+    kept as debug detail."""
+    tool_version: str | None = None
+    """The tool's version at call time. Compared against the cassette's to flag
+    a replay of a payload recorded for code that has since changed."""
     fault: str | None = None
+    """`kind:delivery` of the injected fault, e.g. `empty_result:return`. Set
+    on every faulted call, whether the fault was raised or returned, so "was
+    this call faulted" is one field and not an inference from the outcome."""
+    miss_verdict: str | None = None
+    """For `outcome == "miss"`: how the miss was classified -
+    `hallucinated_parameter`, `hallucinated_tool`, `wrong_tool_for_step` or
+    `unrecorded_valid_path`. On the trace rather than only in the diagnosis
+    block because the gate has to exclude uncovered misses from a candidate's
+    pass rate, and it reads traces."""
     latency_ms: float = 0.0
     error: str | None = None
 

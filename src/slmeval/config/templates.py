@@ -56,6 +56,20 @@ seed = 42
 # `slmeval run --serial-latency` when you want numbers you can publish.
 concurrency = 4
 
+# Which faults, and how they reach your agent. Optional: with just
+# fault_injection_rate above, every fault in the taxonomy is enabled at its
+# default delivery. Uncomment to narrow it.
+#
+# Delivery is the choice that matters. A 429 *raised* tests your retry
+# wrapper; the same 429 *returned* as a payload tests whether the model reads
+# its tool output at all - and that is where small models actually fail.
+#
+# [benchmark.faults]
+# kinds = ["empty_result", "semantic_conflict", "rate_limit_429"]
+# delivery = {{ rate_limit_429 = "return" }}
+# weights = {{ empty_result = 3.0 }}
+# delay_scale = 1.0          # 0.0 skips the real waits; fast, but no timeout fires
+
 # Abort limits per execution. A runaway loop is a finding, not a hang.
 timeout_s = 120.0
 max_steps = 25

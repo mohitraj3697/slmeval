@@ -16,11 +16,13 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
 
 from slmeval.core.trace import JsonStage
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 Role = Literal["system", "user", "assistant", "tool"]
 
@@ -216,6 +218,28 @@ class Completion:
     def schema_lenient(self) -> bool:
         return self.json_stage is not None and self.json_stage is not JsonStage.DIRECT
 
+    def parsed_as(self, schema: type[ModelT]) -> ModelT:
+        """The validated object, typed as what you asked for.
+
+        ``complete(schema=X)`` either returns a validated ``X`` or raises
+        :class:`StructuredOutputError`, so in agent code this never legitimately
+        returns ``None``. But ``parsed`` has to be typed ``BaseModel | None``,
+        because a completion made without a schema has nothing parsed - which
+        would otherwise leave every agent writing the same ``assert`` to get its
+        own type back. This narrows it once, here.
+        """
+        if self.parsed is None:
+            raise ValueError(
+                "this completion has no parsed object - it was made without schema=. "
+                "Pass schema= to complete() to get a validated model back."
+            )
+        if not isinstance(self.parsed, schema):
+            raise TypeError(
+                f"this completion parsed as {type(self.parsed).__name__}, "
+                f"not {schema.__name__}"
+            )
+        return self.parsed
+
 
 @runtime_checkable
 class ChatClient(Protocol):
@@ -384,6 +408,7 @@ __all__ = [
     "ClientSpec",
     "Completion",
     "MessageLike",
+    "ModelT",
     "Msg",
     "ProviderError",
     "ProviderRequestError",

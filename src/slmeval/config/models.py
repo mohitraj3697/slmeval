@@ -15,7 +15,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -27,6 +27,20 @@ ENTRYPOINT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$")
 Provider = Literal["openai", "anthropic", "ollama", "openai_compatible", "fake"]
 ToolMode = Literal["record", "replay", "auto", "live"]
 StructuredMode = Literal["auto", "tools", "json_schema", "json_mode", "prompt"]
+
+#: Spelled out rather than generated from :class:`slmeval.sandbox.faults.FaultKind`
+#: so a typo in `eval.toml` is a config error naming the valid values, and so the
+#: config layer does not import the engine at module scope.
+FaultKindName = Literal[
+    "rate_limit_429",
+    "timeout_504",
+    "malformed_json",
+    "empty_result",
+    "partial_schema",
+    "semantic_conflict",
+    "latency_spike",
+]
+DeliveryName = Literal["raise", "return"]
 
 DEFAULT_API_KEY_ENV: dict[str, str | None] = {
     "openai": "OPENAI_API_KEY",
@@ -55,6 +69,76 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class FaultsCfg(StrictModel):
+    """Which faults to inject, and how they are delivered.
+
+    Optional: the defaults in :mod:`slmeval.sandbox.faults` enable the whole
+    taxonomy at its default delivery, so `fault_injection_rate` alone is enough
+    to get started. This section exists because *delivery* changes what is
+    being measured - a 429 raised tests the retry wrapper, the same 429
+    returned as a payload tests whether the model reads its tool output at all
+    - and that is a choice only the user can make for their agent.
+    """
+
+    kinds: list[FaultKindName] = Field(default_factory=list)
+    """Faults to enable. Empty means all of them."""
+
+    delivery: dict[FaultKindName, DeliveryName] = Field(default_factory=dict)
+    """Per-fault override of raise vs return. Validated against what each
+    fault can meaningfully be: a returned timeout and a raised `empty_result`
+    are both refused, here, at config-load time."""
+
+    weights: dict[FaultKindName, float] = Field(default_factory=dict)
+    """Relative frequency per fault. `empty_result` and `semantic_conflict`
+    are weighted double by default because they are where small models fail
+    most interestingly and an even split puts almost none of either into a
+    ten-case dataset."""
+
+    # `Annotated[..., Field(...)] = default` rather than the `Field(default, ...)`
+    # form used elsewhere in this file, and not a style preference: without the
+    # pydantic mypy plugin, `Field(1.0, ge=...)` does not read as a default, so
+    # this model would look un-constructible and `BenchmarkCfg.faults` below
+    # could not default to one.
+    delay_scale: Annotated[float, Field(ge=0.0, le=10.0)] = 1.0
+    """Multiplier on the real delays that `timeout_504` and `latency_spike`
+    wait out. 1.0 is realistic; 0.0 makes a smoke run instant at the cost of
+    never tripping the agent's own timeout."""
+
+    @model_validator(mode="after")
+    def _check_deliverable(self) -> FaultsCfg:
+        """Refuse a delivery the fault has no meaningful form for.
+
+        Done here rather than at the first injected fault, which could be an
+        hour into a matrix run - everything needed to catch it is in this
+        object.
+        """
+        from slmeval.sandbox.faults import fault_schedule
+
+        try:
+            fault_schedule(0, "_validate", **self.to_kwargs(rate=1.0))
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        return self
+
+    def to_kwargs(self, *, rate: float) -> dict[str, Any]:
+        """Keyword arguments for
+        :func:`slmeval.sandbox.faults.fault_schedule`.
+
+        The enum conversion lives here so the config layer can keep plain
+        strings - a TOML file should never have to spell a Python enum - while
+        the engine keeps its typed API.
+        """
+        from slmeval.sandbox.faults import Delivery, FaultKind
+
+        return {
+            "rate": rate,
+            "kinds": [FaultKind(k) for k in self.kinds] or None,
+            "delivery": {FaultKind(k): Delivery(v) for k, v in self.delivery.items()},
+            "weights": {FaultKind(k): w for k, w in self.weights.items()},
+            "delay_scale": self.delay_scale,
+        }
+
+
 class BenchmarkCfg(StrictModel):
     """Run-wide settings."""
 
@@ -67,6 +151,7 @@ class BenchmarkCfg(StrictModel):
     concurrency: int = Field(4, ge=1, le=256)
     timeout_s: float = Field(120.0, gt=0.0, le=3600.0)
     max_steps: int = Field(25, ge=1, le=1000)
+    faults: FaultsCfg = Field(default_factory=FaultsCfg)
 
 
 class TargetCfg(StrictModel):

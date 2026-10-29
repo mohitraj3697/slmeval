@@ -26,6 +26,7 @@ and all three are load-bearing:
 
 from __future__ import annotations
 
+import threading
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -37,6 +38,8 @@ from slmeval.core.trace import LLMCallTrace, NodeVisit, ToolCallTrace
 
 if TYPE_CHECKING:
     from slmeval.core.router import ModelRouter
+    from slmeval.sandbox.faults import Fault, FaultSchedule, FaultVector, InjectedFault
+    from slmeval.sandbox.store import CassetteStore
 
 
 class SlmevalContextWarning(UserWarning):
@@ -77,6 +80,17 @@ class RunContext:
     router: ModelRouter | None = None
     """Resolves node -> model. None outside a benchmark (production passthrough)."""
 
+    cassettes: CassetteStore | None = None
+    """Recorded tool responses. The sandbox refuses to run in `record` or
+    `replay` mode without one rather than falling through to the real tool:
+    quietly calling a customer's live API during a benchmark is the worst thing
+    this harness could do."""
+
+    faults: FaultSchedule | None = None
+    """The fault schedule for this case. One object, shared by every candidate
+    running the case, so no candidate can be handed a different one by
+    accident. None disables injection entirely."""
+
     llm_calls: list[LLMCallTrace] = field(default_factory=list)
     tool_calls: list[ToolCallTrace] = field(default_factory=list)
     trajectory: list[NodeVisit] = field(default_factory=list)
@@ -85,6 +99,19 @@ class RunContext:
     steps: int = 0
     warnings: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    tool_counts: dict[str, int] = field(default_factory=dict)
+    """Calls so far, **per tool name**. This is what the fault schedule is
+    indexed by, and the reason it is per-name rather than one global counter is
+    the whole correctness argument for fault parity: with a single counter, one
+    extra call to any tool shifts every later fault onto a different step, and
+    two candidates stop facing the same experiment while the table still prints
+    them side by side. See :mod:`slmeval.sandbox.faults`."""
+
+    fault_vector: FaultVector = field(default_factory=lambda: _fault_vector())
+    """The faults this execution actually met, in order. Compared against the
+    baseline's, because under divergent trajectories the *schedule* is not what
+    the two runs had in common - only what they met is."""
 
     @property
     def scope(self) -> str:
@@ -109,6 +136,47 @@ class RunContext:
     def record_tool(self, trace: ToolCallTrace) -> None:
         self.tool_calls.append(trace)
 
+    def next_tool_index(self, tool_name: str) -> int:
+        """This tool's own call index, counting from zero, and advance it.
+
+        Called exactly once per intercepted call, before the fault lookup. Not
+        derived from ``len(self.tool_calls)`` filtered by name, because a trace
+        is appended in a ``finally`` block *after* the fault decision - the
+        index has to exist before the call resolves.
+        """
+        index = self.tool_counts.get(tool_name, 0)
+        self.tool_counts[tool_name] = index + 1
+        return index
+
+    def fault_for(self, tool_name: str, call_index: int) -> Fault | None:
+        """The scheduled fault for this call, or None.
+
+        Faults are never injected while recording: a faulted payload written to
+        the store would poison every later replay of that call, and the poison
+        would be indistinguishable from a real recording. ``live`` mode is not
+        intercepted at all, so there is nothing to fault there either.
+        """
+        if self.faults is None:
+            return None
+        if self.tool_mode in {"record", "live"}:
+            if self.faults.rate > 0.0:
+                # A `--fault-rate 0.2 --tool-mode record` run that injected
+                # nothing and said nothing would read as "faults do not change
+                # the outcome", which is the opposite of the truth.
+                self.warn(
+                    f"tool_mode={self.tool_mode!r}: no faults were injected, because a "
+                    "faulted payload would be written to the cassette store and poison "
+                    "every later replay"
+                )
+            return None
+        return self.faults.fault_for(tool_name, call_index)
+
+    def record_fault(
+        self, fault: Fault, *, node: str | None = None, applied: bool = True
+    ) -> InjectedFault:
+        """Append one delivered fault to this execution's vector."""
+        return self.fault_vector.add(fault, node=node, applied=applied)
+
     def note_step(self) -> None:
         """Count one agent step and enforce the budget."""
         self.steps += 1
@@ -120,6 +188,18 @@ class RunContext:
         degraded-but-passing run never looks clean."""
         if message not in self.warnings:
             self.warnings.append(message)
+
+
+def _fault_vector() -> FaultVector:
+    """Default factory for :attr:`RunContext.fault_vector`.
+
+    A function so the import stays local: :mod:`slmeval.sandbox.faults` is
+    imported by the sandbox, which imports this module, and a module-level
+    import here would close the cycle.
+    """
+    from slmeval.sandbox.faults import FaultVector
+
+    return FaultVector()
 
 
 _context: ContextVar[RunContext | None] = ContextVar("slmeval_context", default=None)
@@ -135,6 +215,42 @@ _NO_CONTEXT_HINT = (
     "`ThreadPoolExecutor.submit`. If your agent uses either, re-install the "
     "context inside the worker with `slmeval.core.context.use_context(ctx)`."
 )
+
+
+_active_lock = threading.Lock()
+_active = 0
+
+
+@contextmanager
+def benchmark_running() -> Iterator[None]:
+    """Mark a benchmark as in progress, process-wide.
+
+    This exists to tell two indistinguishable situations apart. A tool call with
+    no context is either:
+
+    - the user's agent running normally in production, where calling the real
+      tool is exactly right and a warning would be noise they learn to ignore;
+    - a context lost crossing a thread boundary *during a benchmark*, where
+      calling the real tool means spending money and silently invalidating the
+      run.
+
+    From inside the tool these look identical. A process-wide flag separates
+    them, so the warning fires only when it means something.
+    """
+    global _active
+    with _active_lock:
+        _active += 1
+    try:
+        yield
+    finally:
+        with _active_lock:
+            _active -= 1
+
+
+def benchmark_running_now() -> bool:
+    """True while any `slmeval run` is executing in this process."""
+    with _active_lock:
+        return _active > 0
 
 
 def set_context(ctx: RunContext) -> None:
@@ -252,6 +368,8 @@ __all__ = [
     "RunContext",
     "SlmevalContextWarning",
     "StepBudgetExceeded",
+    "benchmark_running",
+    "benchmark_running_now",
     "current_node",
     "current_node_path",
     "get_context",

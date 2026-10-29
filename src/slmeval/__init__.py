@@ -1,9 +1,8 @@
 """slmeval — benchmark agent workflows across small language models.
 
-The public API is intentionally tiny. Integration is two touch points, and one
-of them is built:
+The public API is intentionally tiny. Integration is two touch points:
 
-    from slmeval import chat_model, node
+    from slmeval import chat_model, node, sandbox_tool
 
     async def run_case(case_input: dict) -> dict:
         with node("intent_router"):               # names the row in the scorecard
@@ -16,8 +15,16 @@ code:
 
     llm = chat_model(provider="openai", model="gpt-4o-mini")
 
-The second touch point, `@sandbox_tool`, arrives with the cassette store in
-Step 8. Until then tool calls run live and are not recorded.
+The second touch point is `@sandbox_tool`, which records a tool call once and
+then replays it for every candidate, so a 90-execution matrix never touches your
+real APIs:
+
+    @sandbox_tool(match_on=["order_id"], ignore_args=["request_id"])
+    async def fetch_order(order_id: str, request_id: str) -> dict:
+        ...
+
+It is a no-op outside a benchmark too, so in production your tools do exactly
+what they always did.
 """
 
 from __future__ import annotations
@@ -34,8 +41,10 @@ from slmeval.providers.base import (
     ToolCall,
     ToolSpec,
 )
+from slmeval.sandbox.tool import CassetteMiss, sandbox_tool
 
 __all__ = [
+    "CassetteMiss",
     "ChatModel",
     "Completion",
     "Msg",
@@ -47,4 +56,5 @@ __all__ = [
     "__version__",
     "chat_model",
     "node",
+    "sandbox_tool",
 ]

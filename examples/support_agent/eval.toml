@@ -1,0 +1,60 @@
+# The example agent's benchmark.
+#
+#     slmeval validate --config examples/support_agent/eval.toml
+#
+# `slmeval record` and `slmeval run` arrive with the matrix runner in week 2.
+# Until then tests/test_example_agent.py drives this agent directly: it records
+# the tool calls once, then replays the whole run 200 times offline.
+#
+# The baseline is the `fake` provider, so this whole file runs with no API key,
+# no GPU and no network. Swap it for the model you actually ship when you want
+# real numbers.
+
+[benchmark]
+name = "support-agent-slm-downsizing"
+dataset = "./golden_cases.jsonl"
+runs_per_case = 3
+
+# Tool calls are replayed from ./.slmeval/cassettes.sqlite. Run `slmeval record`
+# once first; after that this needs nothing but a CPU.
+tool_mode = "replay"
+
+fault_injection_rate = 0.0
+seed = 42
+concurrency = 4
+timeout_s = 60.0
+
+# Four nodes and up to five tool calls, so 12 is room for a model that loops
+# once without being room for a model that loops forever.
+max_steps = 12
+
+
+[target]
+entrypoint = "support_agent:run_case"
+adapter = "generic"
+
+
+[baseline]
+provider = "fake"
+model = "scripted-baseline"
+
+
+# The downsizing question this example is built to answer: can a 4B model do the
+# intent routing - short input, rigid schema, no reasoning - while the baseline
+# keeps the customer-facing writing?
+#
+# `target_nodes` is why this is worth running. Swapping the model everywhere
+# almost always fails; swapping it on one node is where the cost cut lives.
+[[candidates]]
+id = "gemma3-4b-router-only"
+provider = "ollama"
+model = "gemma3:4b"
+target_nodes = ["intent_router"]
+
+# And the control: the same model on every node. Expect it to do noticeably
+# worse, and expect the difference between these two rows to be the most useful
+# thing in the table.
+[[candidates]]
+id = "gemma3-4b-everywhere"
+provider = "ollama"
+model = "gemma3:4b"

@@ -106,3 +106,42 @@ def test_error_survives_a_missing_source_file(tmp_path: Path, capsys) -> None:
     )
     render.render_error(err, ascii_mode=True)
     assert "bad" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- #
+# The cassette-miss block
+# --------------------------------------------------------------------------- #
+
+
+def test_render_miss_keeps_the_plain_block_verbatim() -> None:
+    # The layout comes from MissDiagnosis.render and this adds style only, so
+    # the block a user screenshots from the terminal and the one they paste out
+    # of a CI log are the same block.
+    from slmeval.cli.render import render_miss
+    from slmeval.sandbox.diagnosis import diagnose
+
+    finding = diagnose(
+        case_id="refund_104",
+        tool_name="fetch_order_from_erp",
+        arguments={"order_id": "9921"},
+        known_tools=["fetch_order_from_erp"],
+        candidate_id="gemma3:4b",
+    )
+    assert render_miss(finding, ascii_mode=True).plain == finding.render(ascii_mode=True)
+
+
+def test_an_uncovered_miss_is_not_coloured_like_a_failure() -> None:
+    # An uncovered path is a gap in our coverage, not a model failure, and
+    # painting it red would undo the distinction the diagnosis exists to draw.
+    from slmeval.cli.render import VERDICT_STYLE
+    from slmeval.sandbox.diagnosis import Verdict
+
+    assert "red" not in VERDICT_STYLE[Verdict.UNRECORDED_VALID_PATH]
+    assert VERDICT_STYLE[Verdict.HALLUCINATED_PARAMETER] == "red"
+
+
+def test_every_verdict_has_a_style() -> None:
+    from slmeval.cli.render import VERDICT_STYLE
+    from slmeval.sandbox.diagnosis import Verdict
+
+    assert set(VERDICT_STYLE) == set(Verdict)

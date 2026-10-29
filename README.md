@@ -47,11 +47,60 @@ And as a library, the halves of the harness that are built:
 | `slmeval.chat_model(...)` | routes each call to the model this candidate assigns to that node |
 | the provider gateway | OpenAI, Ollama and anything speaking `/v1/chat/completions`, plus `fake` |
 | the structured-output ladder | reports which mechanism a candidate actually needed |
+| `slmeval.sandbox_tool(...)` | records a tool call once, then replays it — `record` / `replay` / `auto` / `live` |
+| the cassette key policy | per-tool `match_on` / `normalize` / `ignore_args`, matched exact → normalized → `match_on` subset, reporting which tier hit |
+| the typed envelope | a tool's `datetime`, `Decimal`, tuple, set, enum, Pydantic model or dataclass replays as the same *type* it recorded as — and a value that cannot be recorded faithfully is refused loudly instead of coerced |
+| the cassette store | SQLite + WAL with an in-process LRU; 200 replays of a 4-tool-call agent take 48 ms with sockets blocked |
+| the `generic` adapter | loads `module:callable`, runs it async or in a thread, keeps the run context intact across both |
+
+A worked example lives in [`examples/support_agent/`](examples/support_agent):
+four nodes, five sandboxed tools, no framework, and tools that return
+`datetime`, `Decimal` and `StrEnum` values so the round trip is actually tested.
 
 `record`, `run`, `report`, `compare`, `show`, `gate`, `cassette` and `cache` are
-scaffolded and listed in `--help`, but not implemented yet. They say which step
-delivers them when you call them. The tool sandbox (`@sandbox_tool`) and the
-cassette store are next.
+scaffolded and listed in `--help`, but not implemented yet — they say which step
+delivers them when you call them. The sandbox works as a library today,
+including the cassette-miss diagnosis block and fault injection; the commands
+that drive it over a whole dataset need the matrix runner, which is week 2.
+
+### What a cassette miss tells you
+
+A replay miss is not an exception string. The store is searched for the nearest
+recorded call, the arguments are diffed, and the result is classified:
+
+```text
+✗ refund_104 · gemma3:4b · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order_from_erp
+  called with: {"order_id": "9921"}
+  nearest recorded: {"order_id": "ORD-9921"}
+  diff: order_id: "ORD-9921" → "9921"   (dropped prefix)
+  verdict: hallucinated_parameter
+```
+
+Four verdicts, and the fourth is the one that matters most:
+`hallucinated_parameter`, `hallucinated_tool`, `wrong_tool_for_step`, and
+`unrecorded_valid_path` — the model did something plausible that the baseline
+never recorded. That last one is a gap in *our* coverage, not a model failure.
+It is reported separately, kept out of the candidate's pass rate, and fixed by
+re-recording. A harness that counted it as a failure would inflate its own
+numbers, and the first person to check one by hand would stop believing the
+rest of the table.
+
+### Fault injection, and its honest limit
+
+Faults are scheduled deterministically per `(case_id, seed)` and indexed **per
+tool, by that tool's own Nth call** — not by a global call counter. That
+distinction is the whole correctness argument: with one counter, a candidate
+that makes one extra call to any tool shifts every later fault onto a different
+step, and two candidates stop facing the same experiment while the table still
+prints them side by side.
+
+The limit we cannot engineer away: under divergent trajectories perfect fault
+parity is impossible. A candidate that stops after two calls never meets the
+fault scheduled for the fourth. So every run records the ordered **fault
+vector** it actually met, the comparison table flags any candidate whose vector
+differs from the baseline's, and `--require-fault-parity` discards those pairs
+rather than pretending they are comparable.
 
 Not built yet, and deliberately: the `anthropic` provider (Claude does not speak
 `/v1/chat/completions`; reach it through an OpenAI-compatible gateway until
