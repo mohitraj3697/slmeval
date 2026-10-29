@@ -66,7 +66,9 @@ packages = ["src/slmeval"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# The default suite is the offline suite: no GPU, no API keys, no network, and
+# no spend. Live provider checks are opt-in with `pytest -m live`.
+addopts = "-q -m 'not live'"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 markers = [

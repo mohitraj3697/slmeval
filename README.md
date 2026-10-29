@@ -39,9 +39,23 @@ Alpha, and honest about it. What works today:
 | `slmeval validate` | validate the config, the dataset, and the links between them |
 | `slmeval dataset validate` | check a golden dataset on its own |
 
+And as a library, the halves of the harness that are built:
+
+| API | |
+|---|---|
+| `slmeval.node(...)` | names the agent step a call belongs to; nests correctly |
+| `slmeval.chat_model(...)` | routes each call to the model this candidate assigns to that node |
+| the provider gateway | OpenAI, Ollama and anything speaking `/v1/chat/completions`, plus `fake` |
+| the structured-output ladder | reports which mechanism a candidate actually needed |
+
 `record`, `run`, `report`, `compare`, `show`, `gate`, `cassette` and `cache` are
 scaffolded and listed in `--help`, but not implemented yet. They say which step
-delivers them when you call them.
+delivers them when you call them. The tool sandbox (`@sandbox_tool`) and the
+cassette store are next.
+
+Not built yet, and deliberately: the `anthropic` provider (Claude does not speak
+`/v1/chat/completions`; reach it through an OpenAI-compatible gateway until
+then), and streamed time-to-first-token.
 
 ## Install
 
@@ -100,8 +114,38 @@ target_nodes = ["intent_router"]   # swap this node only
 always fails. Naming the two nodes that don't need frontier reasoning is where
 the large cost cut with no accuracy loss lives.
 
-Providers: `openai`, `anthropic`, `ollama`, `openai_compatible` (llama.cpp
-server, LM Studio, vLLM, Together, Groq, OpenRouter), and `fake` for tests.
+Providers: `openai`, `ollama`, `openai_compatible` (llama.cpp server, LM Studio,
+vLLM, Together, Groq, OpenRouter), and `fake` for tests. `anthropic` is accepted
+by the config and not yet wired up.
+
+### Structured output is measured, not assumed
+
+The reason a small model breaks an agent is almost never that it is dumb — it is
+that its structured-output path on that provider silently degrades. So every
+call with a schema walks a ladder and slmeval records the rung that *worked*:
+
+| Rung | Mechanism |
+|---|---|
+| `tools` | native function calling, schema as a forced tool |
+| `json_schema` | strict `response_format` |
+| `json_mode` | `{"type": "json_object"}` plus the schema in-prompt |
+| `prompt` | schema in-prompt only |
+| `repair` | one re-ask carrying the validation error |
+
+Set `structured_output = "auto"` to walk it, or pin a rung so a published
+comparison is honest. Either way the scorecard can say *gpt-4o used native tools
+throughout; gemma3:4b needed json_mode on 100% of calls and prompt-repair on
+12%*.
+
+JSON that only parses because our parser was forgiving — a fenced block, a prose
+preamble, a trailing comma, a Python dict — is counted as a leniency event and
+reported, not quietly passed. A model that passes because of our regexes is a
+finding, not a pass.
+
+Token counts come from the provider's `usage` block when it sends one. When it
+does not, they are estimated and marked `~` everywhere they appear. Retries are
+excluded from latency and counted separately, so a candidate needing three
+retries per call cannot hide behind a healthy p95.
 
 ## Privacy
 
@@ -117,12 +161,14 @@ Local-first, and not in a marketing sense:
 
 ```bash
 uv sync --extra dev
-uv run pytest
+uv run pytest             # offline: no GPU, no keys, no network, no spend
+uv run pytest -m live     # opt-in: hits whichever providers are reachable
 uv run slmeval --help
 ```
 
-The test suite runs fully offline against a scripted fake provider, in seconds,
-with no GPU and no API keys.
+The default suite runs fully offline against a scripted fake provider, in about
+two seconds. `-m live` is excluded from it on purpose: a suite that costs money
+or needs a GPU is a suite people stop running.
 
 ## License
 
