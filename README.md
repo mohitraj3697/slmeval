@@ -38,6 +38,8 @@ Alpha, and honest about it. What works today:
 | `slmeval doctor` | check Python, storage, credentials and provider reachability |
 | `slmeval validate` | validate the config, the dataset, and the links between them |
 | `slmeval dataset validate` | check a golden dataset on its own |
+| `slmeval cache stats` | what the trace store holds, and what it costs on disk |
+| `slmeval cache prune` | drop runs older than a cutoff and free the payloads nothing references |
 
 And as a library, the halves of the harness that are built:
 
@@ -52,12 +54,14 @@ And as a library, the halves of the harness that are built:
 | the typed envelope | a tool's `datetime`, `Decimal`, tuple, set, enum, Pydantic model or dataclass replays as the same *type* it recorded as — and a value that cannot be recorded faithfully is refused loudly instead of coerced |
 | the cassette store | SQLite + WAL with an in-process LRU; 200 replays of a 4-tool-call agent take 48 ms with sockets blocked |
 | the `generic` adapter | loads `module:callable`, runs it async or in a thread, keeps the run context intact across both |
+| the trace store | one SQLite file with forward-only migrations; a completed run is reconstructible from the rows alone, with provenance (config hash, dataset hash, git SHA, host) recorded so `compare` can refuse a comparison whose premises differ |
+| the payload store | large tool outputs and raw model responses addressed by SHA-256, so one recorded payload replayed by every candidate is stored once |
 
 A worked example lives in [`examples/support_agent/`](examples/support_agent):
 four nodes, five sandboxed tools, no framework, and tools that return
 `datetime`, `Decimal` and `StrEnum` values so the round trip is actually tested.
 
-`record`, `run`, `report`, `compare`, `show`, `gate`, `cassette` and `cache` are
+`record`, `run`, `report`, `compare`, `show`, `gate` and `cassette` are
 scaffolded and listed in `--help`, but not implemented yet — they say which step
 delivers them when you call them. The sandbox works as a library today,
 including the cassette-miss diagnosis block and fault injection; the commands

@@ -11,7 +11,14 @@ from typing import Annotated
 import typer
 
 from slmeval import __version__
-from slmeval.cli.commands import dataset_cmd, doctor_cmd, init_cmd, stubs, validate_cmd
+from slmeval.cli.commands import (
+    cache_cmd,
+    dataset_cmd,
+    doctor_cmd,
+    init_cmd,
+    stubs,
+    validate_cmd,
+)
 from slmeval.cli.render import console
 
 app = typer.Typer(
@@ -57,6 +64,7 @@ init_cmd.register(app)
 doctor_cmd.register(app)
 validate_cmd.register(app)
 dataset_cmd.register(app)
+cache_cmd.register(app)
 stubs.register(app)
 
 

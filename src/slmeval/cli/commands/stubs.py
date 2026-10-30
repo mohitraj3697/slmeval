@@ -23,7 +23,6 @@ PLANNED: list[tuple[str, str, str]] = [
     ("show", "Drill into a run, execution or case.", "step 13, week 3"),
     ("gate", "Fail the build when a candidate regresses.", "step 14, week 3"),
     ("cassette", "Inspect, verify and prune recorded tool responses.", "step 8, week 1"),
-    ("cache", "Trace store statistics and cleanup.", "step 12, week 2"),
 ]
 
 _CONTEXT = {"ignore_unknown_options": True, "allow_extra_args": True}
@@ -40,7 +39,7 @@ def _make(name: str, summary: str, when: str) -> Callable[..., None]:
         out.print()
         out.print(
             Text(
-                "  Available now: init, doctor, validate, dataset validate",
+                "  Available now: init, doctor, validate, dataset validate, cache stats",
                 style="dim",
             )
         )
