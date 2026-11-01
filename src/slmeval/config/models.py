@@ -164,6 +164,20 @@ class TargetCfg(StrictModel):
     entrypoint: str
     adapter: Literal["generic", "langgraph"] = "generic"
 
+    sys_path: list[Path] = Field(default_factory=list)
+    """Extra directories to import from, relative to `eval.toml`.
+
+    Empty is right for the common layout, where the agent module sits next to
+    the config. It exists for the two that do not: a `src/` layout, and a
+    config that lives *inside* the package it benchmarks - as the bundled
+    example does, needing `sys_path = [".."]` so `support_agent` is importable
+    as a package rather than as the directory it happens to be run from.
+
+    Spelled out in the config rather than guessed from the entrypoint, because
+    the failure mode of guessing is importing a different module with the same
+    name and benchmarking the wrong code.
+    """
+
     @field_validator("entrypoint")
     @classmethod
     def _check_entrypoint(cls, v: str) -> str:

@@ -63,6 +63,21 @@ def symbols(ascii_mode: bool | None = None) -> Symbols:
     return ASCII if ascii_mode else UNICODE
 
 
+def ascii_only(ascii_mode: bool | None = None) -> bool:
+    """Whether to avoid non-ASCII glyphs. ``None`` means "ask the terminal"."""
+    return not supports_unicode() if ascii_mode is None else ascii_mode
+
+
+def dash(ascii_mode: bool | None = None) -> str:
+    """The "no value here" cell.
+
+    One helper rather than a constant per module, because an em dash written
+    straight to a legacy Windows codepage comes out as a replacement character
+    - and a table full of those is what a user screenshots.
+    """
+    return "-" if ascii_only(ascii_mode) else "—"
+
+
 def make_encoding_safe(stream: object | None) -> None:
     """Never let printing crash the tool.
 

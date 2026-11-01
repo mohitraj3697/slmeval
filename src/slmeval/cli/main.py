@@ -16,6 +16,9 @@ from slmeval.cli.commands import (
     dataset_cmd,
     doctor_cmd,
     init_cmd,
+    record_cmd,
+    report_cmd,
+    run_cmd,
     stubs,
     validate_cmd,
 )
@@ -64,6 +67,9 @@ init_cmd.register(app)
 doctor_cmd.register(app)
 validate_cmd.register(app)
 dataset_cmd.register(app)
+record_cmd.register(app)
+run_cmd.register(app)
+report_cmd.register(app)
 cache_cmd.register(app)
 stubs.register(app)
 

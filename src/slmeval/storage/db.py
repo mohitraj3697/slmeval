@@ -38,13 +38,17 @@ from slmeval.storage.migrations import applied as applied_migrations
 from slmeval.storage.models import (
     EMPTY_PAYLOAD,
     INLINE_LIMIT,
+    NOT_THE_MODELS_FAULT,
     TERMINAL_STATUSES,
+    BlameRow,
     CandidateRecord,
     CaseRollupRow,
     EvaluationRow,
     ExecStatus,
     ExecutionDetail,
     ExecutionRecord,
+    MetricSample,
+    NodeSummaryRow,
     NodeTraceRow,
     Outcome,
     Payload,
@@ -71,6 +75,7 @@ RUN_COLUMNS: Final = (
     "host_info",
     "mode",
     "seed",
+    "scheduling",
     "fault_rate",
     "runs_per_case",
     "status",
@@ -407,6 +412,7 @@ class RunStore:
                     run.host_info,
                     run.mode,
                     run.seed,
+                    run.scheduling,
                     run.fault_rate,
                     run.runs_per_case,
                     run.status.value,
@@ -730,6 +736,137 @@ class RunStore:
         ).fetchall()
         return [_rollup_from_row(r) for r in rows]
 
+    # ------------------------------------------------- run-wide aggregates
+    #
+    # The scorecard is a handful of queries, not a reconstruction of 1,500
+    # executions. Rendering a table has to be faster than producing one, or
+    # `slmeval report` stops being the thing people re-run to look again.
+
+    def metrics(self, run_id: str, *, metric: str | None = None) -> list[MetricSample]:
+        """Every stored metric for a run, joined to the cell it describes."""
+        sql = (
+            "SELECT e.candidate_id, e.case_id, e.repeat_idx, e.exec_id, e.outcome_class, "
+            "       v.tier, v.metric, v.value_num, v.value_text "
+            "FROM evaluations v JOIN executions e ON e.exec_id = v.exec_id "
+            "WHERE e.run_id = ?"
+        )
+        params: list[Any] = [run_id]
+        if metric is not None:
+            sql += " AND v.metric = ?"
+            params.append(metric)
+        sql += " ORDER BY e.candidate_id, e.case_id, e.repeat_idx, v.tier, v.metric"
+        return [
+            MetricSample(
+                candidate_id=str(r["candidate_id"]),
+                case_id=str(r["case_id"]),
+                repeat_idx=int(r["repeat_idx"]),
+                exec_id=str(r["exec_id"]),
+                tier=int(r["tier"]),
+                metric=str(r["metric"]),
+                value_num=None if r["value_num"] is None else float(r["value_num"]),
+                value_text=r["value_text"],
+                outcome=_enum(Outcome, r["outcome_class"], Outcome.UNCLASSIFIED),
+            )
+            for r in self._conn().execute(sql, params).fetchall()
+        ]
+
+    def node_summary(self, run_id: str) -> list[NodeSummaryRow]:
+        """Model calls per ``(candidate, node)``, aggregated in SQL.
+
+        Aggregated in the database rather than in Python because this is the
+        per-node attribution table, which a user opens on a 1,500-execution run
+        while already annoyed that something regressed.
+        """
+        rows = self._conn().execute(
+            "SELECT e.candidate_id AS candidate_id, n.node_name AS node_name, "
+            "       n.provider AS provider, n.model AS model, "
+            "       COUNT(*) AS calls, "
+            "       SUM(CASE WHEN n.error_class IS NOT NULL THEN 1 ELSE 0 END) AS errors, "
+            "       SUM(CASE WHEN n.schema_state = 'valid' THEN 1 ELSE 0 END) AS ok, "
+            "       SUM(CASE WHEN n.schema_state = 'invalid' THEN 1 ELSE 0 END) AS bad, "
+            "       SUM(n.repair_attempts) AS repairs, "
+            "       SUM(n.latency_ms) AS latency, "
+            "       SUM(COALESCE(n.prompt_tokens, 0)) AS prompt_tokens, "
+            "       SUM(COALESCE(n.completion_tokens, 0)) AS completion_tokens "
+            "FROM node_traces n JOIN executions e ON e.exec_id = n.exec_id "
+            "WHERE e.run_id = ? "
+            "GROUP BY e.candidate_id, n.node_name, n.provider, n.model "
+            "ORDER BY e.candidate_id, n.node_name",
+            (run_id,),
+        ).fetchall()
+        return [
+            NodeSummaryRow(
+                candidate_id=str(r["candidate_id"]),
+                node_name=str(r["node_name"]),
+                provider=str(r["provider"]),
+                model=str(r["model"]),
+                calls=int(r["calls"]),
+                errors=int(r["errors"] or 0),
+                schema_valid=int(r["ok"] or 0),
+                schema_invalid=int(r["bad"] or 0),
+                repair_attempts=int(r["repairs"] or 0),
+                latency_ms=float(r["latency"] or 0.0),
+                prompt_tokens=int(r["prompt_tokens"] or 0),
+                completion_tokens=int(r["completion_tokens"] or 0),
+            )
+            for r in rows
+        ]
+
+    def blame(self, run_id: str) -> list[BlameRow]:
+        """Which node each candidate's failing executions broke in.
+
+        Only failing executions, and only the steps that actually errored. A
+        count over every node would rank the busiest node first, which is
+        exactly the wrong answer: the useful one is where the failures
+        concentrate, because that is the node to leave on the bigger model.
+        """
+        conn = self._conn()
+        passed = (Outcome.PASSED.value, Outcome.UNCLASSIFIED.value)
+        blocked = tuple(o.value for o in NOT_THE_MODELS_FAULT)
+        skip = passed + blocked
+        holes = ", ".join("?" * len(skip))
+
+        out: list[BlameRow] = []
+        for table, kind in (("node_traces", "model"), ("tool_traces", "tool")):
+            column = "error_class" if table == "node_traces" else "error_message"
+            rows = conn.execute(
+                f"SELECT e.candidate_id AS candidate_id, t.node_name AS node_name, "
+                f"       t.{column} AS problem, COUNT(*) AS n "
+                f"FROM {table} t JOIN executions e ON e.exec_id = t.exec_id "
+                f"WHERE e.run_id = ? AND e.outcome_class NOT IN ({holes}) "
+                f"      AND t.{column} IS NOT NULL "
+                "GROUP BY e.candidate_id, t.node_name, problem "
+                "ORDER BY n DESC",
+                (run_id, *skip),
+            ).fetchall()
+            out += [
+                BlameRow(
+                    candidate_id=str(r["candidate_id"]),
+                    node_name=str(r["node_name"]) or "(unnamed)",
+                    kind=kind,
+                    # A tool failure's "class" is its message; the first line
+                    # is the part that groups usefully.
+                    error_class=str(r["problem"]).split("\n", 1)[0][:120],
+                    count=int(r["n"]),
+                )
+                for r in rows
+            ]
+        return out
+
+    def outcome_counts(self, run_id: str) -> dict[tuple[str, Outcome], int]:
+        """``(candidate_id, outcome) -> count``, for the summary line."""
+        rows = self._conn().execute(
+            "SELECT candidate_id, outcome_class, COUNT(*) AS n FROM executions "
+            "WHERE run_id = ? GROUP BY candidate_id, outcome_class",
+            (run_id,),
+        ).fetchall()
+        return {
+            (str(r["candidate_id"]), _enum(Outcome, r["outcome_class"], Outcome.UNCLASSIFIED)): int(
+                r["n"]
+            )
+            for r in rows
+        }
+
     def completed_units(self, run_id: str) -> set[tuple[str, str, int]]:
         """``(candidate_id, case_id, repeat_idx)`` triples that need no re-run.
 
@@ -1048,6 +1185,7 @@ def _run_from_row(row: Mapping[str, Any] | sqlite3.Row) -> RunRecord:
         host_info=str(row["host_info"]),
         mode=str(row["mode"]),
         seed=int(row["seed"]),
+        scheduling=str(row["scheduling"]),
         fault_rate=float(row["fault_rate"]),
         runs_per_case=int(row["runs_per_case"]),
         status=_enum(RunStatus, row["status"], RunStatus.COMPLETED),

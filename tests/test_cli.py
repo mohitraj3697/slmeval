@@ -229,7 +229,7 @@ def test_dataset_validate_reports_problems(tmp_path: Path) -> None:
 # -- planned commands ------------------------------------------------------
 
 
-@pytest.mark.parametrize("command", ["record", "run", "report", "compare", "gate"])
+@pytest.mark.parametrize("command", ["compare", "show", "gate", "cassette"])
 def test_planned_commands_explain_themselves(command: str) -> None:
     result = runner.invoke(app, [command])
     assert result.exit_code == exit_codes.USAGE
@@ -238,5 +238,14 @@ def test_planned_commands_explain_themselves(command: str) -> None:
 
 def test_planned_commands_tolerate_arguments() -> None:
     """A scripted invocation should get the message, not a usage error."""
-    result = runner.invoke(app, ["run", "--config", "x.toml", "--candidate", "y"])
+    result = runner.invoke(app, ["compare", "--baseline", "a", "--candidate", "b"])
     assert "not implemented yet" in text_of(result)
+
+
+@pytest.mark.parametrize("command", ["record", "run", "report"])
+def test_week_two_commands_are_real_now(command: str) -> None:
+    """They need a project, so they fail on a missing config - not on being stubs."""
+    result = runner.invoke(app, [command, "--config", "nope.toml"])
+    assert result.exit_code == exit_codes.USAGE
+    assert "config file not found" in text_of(result)
+    assert "not implemented yet" not in text_of(result)

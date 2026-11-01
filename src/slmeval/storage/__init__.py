@@ -19,12 +19,16 @@ from slmeval.storage.blobs import BlobStore, MissingBlob
 from slmeval.storage.db import DB_NAME, RunNotFound, RunStore, make_exec_id
 from slmeval.storage.migrations import SCHEMA_VERSION
 from slmeval.storage.models import (
+    NOT_THE_MODELS_FAULT,
+    BlameRow,
     CandidateRecord,
     CaseRollupRow,
     EvaluationRow,
     ExecStatus,
     ExecutionDetail,
     ExecutionRecord,
+    MetricSample,
+    NodeSummaryRow,
     NodeTraceRow,
     Outcome,
     Payload,
@@ -38,7 +42,9 @@ from slmeval.storage.provenance import Divergence, Provenance, divergences, new_
 
 __all__ = [
     "DB_NAME",
+    "NOT_THE_MODELS_FAULT",
     "SCHEMA_VERSION",
+    "BlameRow",
     "BlobStore",
     "CandidateRecord",
     "CaseRollupRow",
@@ -47,7 +53,9 @@ __all__ = [
     "ExecStatus",
     "ExecutionDetail",
     "ExecutionRecord",
+    "MetricSample",
     "MissingBlob",
+    "NodeSummaryRow",
     "NodeTraceRow",
     "Outcome",
     "Payload",

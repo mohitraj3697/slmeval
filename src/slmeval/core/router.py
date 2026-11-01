@@ -99,6 +99,23 @@ class ModelRouter:
             return [self.candidate]
         return [self.candidate, self.baseline]
 
+    def clients(self) -> list[ChatClient]:
+        """A client per model this router can route to, built and cached.
+
+        The runner's latency warm-up needs every model, not just the one that
+        answers a given node: a node-scoped candidate leaves the baseline
+        serving the other nodes, and a cold baseline would charge its weight
+        load to whichever case happened to run first.
+        """
+        out: list[ChatClient] = []
+        for model in self.models:
+            client = self._clients.get(model.id)
+            if client is None:
+                client = build_client(model, timeout_s=self.timeout_s, http=self.http)
+                self._clients[model.id] = client
+            out.append(client)
+        return out
+
     async def aclose(self) -> None:
         for client in self._clients.values():
             await client.aclose()
@@ -144,6 +161,15 @@ class ChatModel:
             return await self._complete_untraced(
                 messages, schema=schema, tools=tools, tool_choice=tool_choice
             )
+
+        # A model call is a step, as a tool call is. Counted here and not only
+        # in the sandbox because the runaway loop the budget exists to catch is
+        # often a re-ask loop that never reaches a tool: a model that keeps
+        # failing its schema and being retried would otherwise spin until
+        # `timeout_s`, and be reported as a hang rather than as the finding it
+        # is. Raises StepBudgetExceeded, which the runner classifies as
+        # `step_budget` - a result, not a crash.
+        ctx.note_step()
 
         client = ctx.router.client_for(where)
         spec = client.spec

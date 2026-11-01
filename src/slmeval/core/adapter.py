@@ -35,7 +35,7 @@ import dataclasses
 import importlib
 import inspect
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -56,13 +56,23 @@ class Target:
     is_async: bool
 
     @classmethod
-    def load(cls, entrypoint: str, *, root: Path | str | None = None) -> Target:
+    def load(
+        cls,
+        entrypoint: str,
+        *,
+        root: Path | str | None = None,
+        extra_paths: Sequence[Path | str] = (),
+    ) -> Target:
         """Import ``module.path:callable``.
 
         ``root`` goes on ``sys.path`` first, because the entrypoint in
         ``eval.toml`` is written relative to the project - ``slmeval_target:run_case``
         means "the file next to eval.toml", and a user running ``slmeval run``
         from a parent directory should not have to think about ``PYTHONPATH``.
+
+        ``extra_paths`` is ``[target].sys_path``, for the layouts where that is
+        not enough: a ``src/`` directory, or a config that lives inside the
+        package it benchmarks.
         """
         if not ENTRYPOINT_RE.match(entrypoint):
             raise ConfigError(
@@ -71,7 +81,7 @@ class Target:
             )
         module_name, _, attribute = entrypoint.partition(":")
 
-        with _path_including(root):
+        with _path_including(root, *extra_paths):
             try:
                 module = importlib.import_module(module_name)
             except ImportError as exc:
@@ -81,7 +91,9 @@ class Target:
                         "paths are resolved against "
                         f"{Path(root).resolve() if root else Path.cwd()}. Check the module "
                         "name, and that any package it imports is installed in the same "
-                        "environment as slmeval."
+                        "environment as slmeval. If the module lives elsewhere - a src/ "
+                        "layout, or a package one level up - add it to "
+                        '[target].sys_path in eval.toml.'
                     ),
                 ) from exc
             except BaseException as exc:
@@ -168,10 +180,11 @@ def load_target(
     *,
     adapter: str = "generic",
     root: Path | str | None = None,
+    extra_paths: Sequence[Path | str] = (),
 ) -> Target:
     """Load the agent named by ``[target]`` in eval.toml."""
     if adapter == "generic":
-        return Target.load(entrypoint, root=root)
+        return Target.load(entrypoint, root=root, extra_paths=extra_paths)
     if adapter == "langgraph":
         raise ConfigError(
             "the langgraph adapter is not implemented yet (step 7, week 3)",
@@ -188,28 +201,34 @@ def load_target(
 
 
 class _path_including:
-    """Put ``root`` at the front of ``sys.path`` for the duration of an import.
+    """Put directories at the front of ``sys.path`` for the duration of an import.
 
-    Restored afterwards, and only if we were the ones who added it: leaving a
-    user's project directory on ``sys.path`` for the rest of the process would
-    let it shadow real packages in ways that are maddening to debug.
+    Restored afterwards, and only the entries we added: leaving a user's
+    project directory on ``sys.path`` for the rest of the process would let it
+    shadow real packages in ways that are maddening to debug.
+
+    Order is preserved - the first argument ends up first - so a user who lists
+    two directories gets the precedence they wrote.
     """
 
-    def __init__(self, root: Path | str | None) -> None:
-        self._entry = str(Path(root).resolve()) if root is not None else None
-        self._added = False
+    def __init__(self, *roots: Path | str | None) -> None:
+        self._entries = [
+            str(Path(root).resolve()) for root in roots if root is not None
+        ]
+        self._added: list[str] = []
 
     def __enter__(self) -> None:
-        if self._entry is None or self._entry in sys.path:
-            return
-        sys.path.insert(0, self._entry)
-        self._added = True
+        for entry in reversed(self._entries):
+            if entry in sys.path:
+                continue
+            sys.path.insert(0, entry)
+            self._added.append(entry)
 
     def __exit__(self, *exc: object) -> None:
-        if self._added:
+        for entry in self._added:
             with contextlib.suppress(ValueError):
-                sys.path.remove(self._entry)  # type: ignore[arg-type]
-            self._added = False
+                sys.path.remove(entry)
+        self._added.clear()
 
 
 def _suggest_callables(module: Any, wanted: str) -> str:

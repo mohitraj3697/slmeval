@@ -1,14 +1,13 @@
-# The example agent's benchmark.
+# The example agent's benchmark. Runs offline, with no API key and no GPU:
 #
-#     slmeval validate --config examples/support_agent/eval.toml
+#     cd examples/support_agent
+#     slmeval record      # execute the real tools once, cache them
+#     slmeval run         # replay them against every candidate
 #
-# `slmeval record` and `slmeval run` arrive with the matrix runner in week 2.
-# Until then tests/test_example_agent.py drives this agent directly: it records
-# the tool calls once, then replays the whole run 200 times offline.
-#
-# The baseline is the `fake` provider, so this whole file runs with no API key,
-# no GPU and no network. Swap it for the model you actually ship when you want
-# real numbers.
+# `record` touches the in-memory ERP in erp.py, not a real system. After it,
+# `run` makes no outbound calls at all - which is the claim the whole tool
+# rests on, and the reason this file ships with `fake` candidates rather than
+# ones that need a model server.
 
 [benchmark]
 name = "support-agent-slm-downsizing"
@@ -33,28 +32,100 @@ max_steps = 12
 entrypoint = "support_agent:run_case"
 adapter = "generic"
 
+# This config lives *inside* the package it benchmarks, so the package's parent
+# has to be importable for `import support_agent` to find a package rather than
+# a directory. A project with eval.toml at its root needs none of this.
+sys_path = [".."]
 
+
+# The baseline is the `fake` provider: a scripted model, so the reference run is
+# byte-identical on every machine and costs nothing. Swap it for the model you
+# actually ship when you want real numbers.
+#
+# One script per case, because one model has to answer four different
+# questions: the routing response for "where is my order ORD-9921" is the wrong
+# answer to "my package never turned up", and a shared script would have the
+# reference run fail most of its own dataset.
 [baseline]
 provider = "fake"
 model = "scripted-baseline"
+extra_body.script = [
+    { text = '{"intent": "other", "order_id": "", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Could you give me your order number so I can check that for you?"}' },
+]
+
+[baseline.extra_body.script_by_case]
+status_shipped = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 is with DHL and should arrive on 2026-02-03."}' },
+]
+status_messy_id = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 shipped with DHL and should arrive on 2026-02-03."}' },
+]
+# The safety case. The customer demanded a refund but has not confirmed, so the
+# router must report `wants_confirmation = false` - which is what keeps the
+# agent out of `issue_refund`, the one tool that moves money.
+refund_needs_confirmation = [
+    { text = '{"intent": "refund", "order_id": "ORD-7310", "wants_confirmation": false}' },
+    { text = '{"final_answer": "I can start that refund for ORD-7310 - can you confirm you want me to go ahead?"}' },
+]
+# No order named, so no lookup. This path makes no tool calls at all, which is
+# what gives it a different trajectory from every other case.
+no_order_named = [
+    { text = '{"intent": "order_status", "order_id": "", "wants_confirmation": false}' },
+]
 
 
-# The downsizing question this example is built to answer: can a 4B model do the
-# intent routing - short input, rigid schema, no reasoning - while the baseline
-# keeps the customer-facing writing?
-#
-# `target_nodes` is why this is worth running. Swapping the model everywhere
-# almost always fails; swapping it on one node is where the cost cut lives.
+# Candidate 1: a small model on the router node only - the realistic downsizing
+# question, and almost always a better trade than replacing the model
+# everywhere. This script drops the "ORD-" prefix, which is the single most
+# common small-model failure on this task: the agent then asks the ERP for an
+# order that was never recorded, and the run reports a cassette miss with a
+# per-argument diff instead of quietly calling a live API.
 [[candidates]]
-id = "gemma3-4b-router-only"
-provider = "ollama"
-model = "gemma3:4b"
+id = "sloppy-router"
+provider = "fake"
+model = "sloppy-router"
 target_nodes = ["intent_router"]
+extra_body.script = [
+    { text = '{"intent": "order_status", "order_id": "9921", "wants_confirmation": false}' },
+]
 
-# And the control: the same model on every node. Expect it to do noticeably
-# worse, and expect the difference between these two rows to be the most useful
-# thing in the table.
+
+# Candidate 2: a model that gets the answer right but cannot emit clean JSON -
+# it wraps the object in a prose preamble and a fenced block. The extraction
+# cascade digs it out, so this candidate *passes*, and the scorecard says it
+# only passed with help. That gap between `schema_valid_rate` and
+# `schema_repaired_rate` is the clearest small-model signal the tool produces.
 [[candidates]]
-id = "gemma3-4b-everywhere"
-provider = "ollama"
-model = "gemma3:4b"
+id = "fenced-json"
+provider = "fake"
+model = "fenced-json"
+extra_body.unsupported = ["tools", "json_schema"]
+extra_body.script = [
+    { text = '''Sure! Here is the routing:
+```json
+{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}
+```''' },
+    { text = '''Happy to help:
+```json
+{"final_answer": "Your order ORD-9921 is with DHL and should arrive in two days."}
+```''' },
+]
+
+
+# Swap these in once you have Ollama running, and compare them against the
+# scripted rows above. Scoping a candidate to one node is where the cost cut
+# lives: swapping the model everywhere almost always fails.
+#
+# [[candidates]]
+# id = "gemma3-4b-router-only"
+# provider = "ollama"
+# model = "gemma3:4b"
+# target_nodes = ["intent_router"]
+#
+# [[candidates]]
+# id = "gemma3-4b-everywhere"
+# provider = "ollama"
+# model = "gemma3:4b"

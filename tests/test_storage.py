@@ -28,7 +28,12 @@ from slmeval.errors import EnvironmentError_
 from slmeval.sandbox.faults import Delivery, Fault, FaultKind, FaultVector
 from slmeval.storage import codec, ingest
 from slmeval.storage.db import RunNotFound, RunStore, make_exec_id
-from slmeval.storage.migrations import SCHEMA_VERSION, current_version, migrate
+from slmeval.storage.migrations import (
+    MIGRATIONS,
+    SCHEMA_VERSION,
+    current_version,
+    migrate,
+)
 from slmeval.storage.models import (
     EMPTY_PAYLOAD,
     CandidateRecord,
@@ -115,7 +120,9 @@ def an_execution(
 def test_fresh_file_is_at_the_current_version(store: RunStore) -> None:
     assert store.schema_version == SCHEMA_VERSION
     history = store.migration_history()
-    assert [v for v, *_ in history] == [1]
+    # Every migration, not a hardcoded list: a new one added without being
+    # applied on a fresh file is the bug this guards.
+    assert [v for v, *_ in history] == [m.version for m in MIGRATIONS]
     assert history[0][3] == __version__
 
 
@@ -125,7 +132,7 @@ def test_migrating_twice_is_a_no_op(tmp_path: Path) -> None:
     path = tmp_path / "runs.sqlite"
     conn = sqlite3.connect(path, isolation_level=None)
     try:
-        assert migrate(conn) == [1]
+        assert migrate(conn) == [m.version for m in MIGRATIONS]
         assert migrate(conn) == []
         assert current_version(conn) == SCHEMA_VERSION
     finally:

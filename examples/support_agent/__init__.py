@@ -16,15 +16,23 @@ up your own agent:
     expects. ``node()`` marks the four steps; ``chat_model()`` lets the harness
     decide which model answers each one.
 
-What works today:
+Run it, offline, with no API key and no GPU:
 
-    slmeval validate --config examples/support_agent/eval.toml
+    cd examples/support_agent
+    slmeval record      # execute the real tools once, cache them
+    slmeval run         # replay them against every candidate
 
-`slmeval record` and `slmeval run` need the matrix runner, which lands in week 2;
-until then the agent is driven from `tests/test_example_agent.py`, which records
-its tool calls once and then replays the whole thing 200 times offline with
-sockets blocked. That test is the honest demonstration, and it is also where to
-look for how to drive the harness from your own code.
+`record` touches the in-memory systems in `erp.py`, not anything real. After it,
+`run` makes no outbound calls at all.
+
+The candidates in `eval.toml` are scripted `fake` models chosen to show the two
+failure modes worth knowing about: one drops the `ORD-` prefix and misses the
+cassette with a per-argument diff, and one gets the right answer but can only
+emit JSON inside a prose preamble, so it passes *with help* - which the
+scorecard says out loud.
+
+`tests/test_example_agent.py` drives the same agent as a library, and is where
+to look for how to run the harness from your own code.
 """
 
 from __future__ import annotations

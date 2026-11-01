@@ -217,6 +217,16 @@ _V1: Final = (
 )
 
 
+_V2: Final = (
+    # Which scheduling mode produced the run. Not a cosmetic flag: local-model
+    # latency measured under concurrency is meaningless - requests queue in the
+    # server and the numbers come out several times too slow - so a report has
+    # to know whether it may print a latency column at all, and that knowledge
+    # must survive the process that measured it.
+    "ALTER TABLE runs ADD COLUMN scheduling TEXT NOT NULL DEFAULT 'throughput'",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class Migration:
     """One forward step. Never edited after release - a changed migration is a
@@ -231,6 +241,7 @@ class Migration:
 
 MIGRATIONS: Final[tuple[Migration, ...]] = (
     Migration(version=1, name="initial", statements=_V1),
+    Migration(version=2, name="run_scheduling_mode", statements=_V2),
 )
 
 SCHEMA_VERSION: Final = MIGRATIONS[-1].version

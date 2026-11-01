@@ -109,6 +109,13 @@ class Outcome(StrEnum):
     gap, reported as its failure."""
 
     TOOL_ERROR = "tool_error"
+    """A tool raised - usually an injected fault the agent never recovered
+    from, which is the numerator of the recovery rate."""
+
+    PROVIDER_ERROR = "provider_error"
+    """The model server never produced a response: down, unreachable, key
+    rejected, model not pulled. Separate from every quality outcome, because
+    "Ollama was not running" must never be reported as a regression."""
 
     STEP_BUDGET = "step_budget"
     """Hit ``max_steps``. Usually a loop."""
@@ -117,7 +124,14 @@ class Outcome(StrEnum):
 
     CRASHED = "crashed"
     """The target raised something unrelated to the model - a bug in the agent
-    under test, or in us."""
+    under test. The agent's own code is the user's to fix, so this counts
+    against the run but is reported as the agent failing, not the model."""
+
+    HARNESS_ERROR = "harness_error"
+    """*We* broke. Counted separately and never attributed to the model or the
+    agent, because conflating our own bugs with model failures is exactly how a
+    benchmark loses the right to be believed. A scorecard prints these above
+    the table as a caveat on the whole run and leaves them out of every rate."""
 
 
 TERMINAL_STATUSES: Final = frozenset({ExecStatus.OK, ExecStatus.ERROR, ExecStatus.TIMEOUT})
@@ -125,6 +139,16 @@ TERMINAL_STATUSES: Final = frozenset({ExecStatus.OK, ExecStatus.ERROR, ExecStatu
 
 ``--resume`` re-runs anything outside this set, which is why ``SKIPPED`` is not
 in it: a unit the previous run never reached is work, not a result.
+"""
+
+
+NOT_THE_MODELS_FAULT: Final = frozenset({Outcome.HARNESS_ERROR, Outcome.UNCOVERED})
+"""Outcomes excluded from a candidate's pass rate entirely.
+
+Not scored as failures and not scored as passes - dropped from the denominator.
+``harness_error`` is our bug and ``uncovered`` is our missing recording; either
+one counted against a candidate would be a regression the tool invented. Both
+are surfaced as warnings above the table instead, where they belong.
 """
 
 
@@ -173,6 +197,14 @@ class RunRecord:
     column."""
 
     seed: int
+
+    scheduling: str = "throughput"
+    """``throughput`` or ``latency``. Throughput runs high concurrency and its
+    latency numbers are not reportable: requests queue inside the provider, and
+    a local model measured that way reads several times slower than it is.
+    Stored so the report refuses to print a p95 column rather than printing a
+    misleading one."""
+
     status: RunStatus = RunStatus.RUNNING
     finished_at: str | None = None
     dataset_path: str = ""
@@ -369,6 +401,73 @@ class CaseRollupRow:
 
 
 @dataclass(frozen=True, slots=True)
+class MetricSample:
+    """One stored metric, with the cell it belongs to.
+
+    The join the report needs and the drill-down does not: a scorecard
+    aggregates thousands of metrics across a run, and doing it by reconstructing
+    each execution in turn would make rendering a table slower than producing
+    one.
+    """
+
+    candidate_id: str
+    case_id: str
+    repeat_idx: int
+    exec_id: str
+    tier: int
+    metric: str
+    value_num: float | None = None
+    value_text: str | None = None
+    outcome: Outcome = Outcome.UNCLASSIFIED
+
+
+@dataclass(frozen=True, slots=True)
+class NodeSummaryRow:
+    """Model calls at one node, for one candidate, aggregated.
+
+    Per-node attribution is the table that turns "this candidate is 13 points
+    worse" into "this candidate breaks in ``policy_check``", which is the
+    difference between a benchmark and a recommendation.
+    """
+
+    candidate_id: str
+    node_name: str
+    provider: str = ""
+    model: str = ""
+    calls: int = 0
+    errors: int = 0
+    schema_valid: int = 0
+    schema_invalid: int = 0
+    repair_attempts: int = 0
+    latency_ms: float = 0.0
+    """Total across calls. The mean is the report's to compute, so a caller
+    that wants a different statistic is not stuck with ours."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def mean_latency_ms(self) -> float | None:
+        return self.latency_ms / self.calls if self.calls else None
+
+    @property
+    def schema_valid_rate(self) -> float | None:
+        judged = self.schema_valid + self.schema_invalid
+        return self.schema_valid / judged if judged else None
+
+
+@dataclass(frozen=True, slots=True)
+class BlameRow:
+    """Where a candidate's failing executions went wrong, counted by node."""
+
+    candidate_id: str
+    node_name: str
+    kind: str
+    """``model`` or ``tool`` - which half of the step failed."""
+    error_class: str = ""
+    count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ExecutionDetail:
     """One execution and everything recorded under it, payloads resolved.
 
@@ -432,13 +531,17 @@ class StoreStats:
 __all__ = [
     "EMPTY_PAYLOAD",
     "INLINE_LIMIT",
+    "NOT_THE_MODELS_FAULT",
     "TERMINAL_STATUSES",
+    "BlameRow",
     "CandidateRecord",
     "CaseRollupRow",
     "EvaluationRow",
     "ExecStatus",
     "ExecutionDetail",
     "ExecutionRecord",
+    "MetricSample",
+    "NodeSummaryRow",
     "NodeTraceRow",
     "Outcome",
     "Payload",

@@ -29,6 +29,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from slmeval.core.context import get_context
 from slmeval.providers.base import (
     ClientSpec,
     Msg,
@@ -74,13 +75,30 @@ class FakeTurn:
 SCRIPTS: dict[str, list[FakeTurn]] = {}
 
 
-def register_script(name: str, turns: Sequence[FakeTurn]) -> None:
-    """Make a script addressable as ``model = "<name>"``."""
-    SCRIPTS[name] = list(turns)
+SCRIPTS_BY_CASE: dict[tuple[str, str], list[FakeTurn]] = {}
+
+
+def register_script(
+    name: str, turns: Sequence[FakeTurn], *, case_id: str | None = None
+) -> None:
+    """Make a script addressable as ``model = "<name>"``.
+
+    ``case_id`` scopes it to one golden case. A benchmark is many cases and one
+    model, and a single script cannot answer them all: the routing response for
+    "where is my order ORD-9921" is the wrong answer to "my package never
+    turned up", so a shared script would have the scripted baseline fail most
+    of its own dataset. Per-case scripts are what make `fake` usable as an
+    offline reference rather than a one-case toy.
+    """
+    if case_id is None:
+        SCRIPTS[name] = list(turns)
+    else:
+        SCRIPTS_BY_CASE[(name, case_id)] = list(turns)
 
 
 def clear_scripts() -> None:
     SCRIPTS.clear()
+    SCRIPTS_BY_CASE.clear()
 
 
 class FakeClient(LadderClient):
@@ -100,6 +118,7 @@ class FakeClient(LadderClient):
     ) -> None:
         super().__init__(spec)
         self._script = list(script) if script is not None else _resolve_script(spec)
+        self._by_case = {} if script is not None else _resolve_case_scripts(spec)
         self._always_unsupported = frozenset(
             unsupported if unsupported is not None else _unsupported_from_config(spec)
         )
@@ -129,6 +148,7 @@ class FakeClient(LadderClient):
 
         turn = self._next_turn()
         self._calls += 1
+        self._advance()
         self.seen.append(
             {
                 "rung": rung,
@@ -166,10 +186,56 @@ class FakeClient(LadderClient):
         )
 
     def _next_turn(self) -> FakeTurn:
-        if not self._script:
+        script = self._script_for_case()
+        if not script:
             return FakeTurn()
-        index = min(self._calls, len(self._script) - 1)
-        return self._script[index]
+        index = min(self._position(), len(script) - 1)
+        return script[index]
+
+    def _script_for_case(self) -> list[FakeTurn]:
+        """This case's script, falling back to the model-wide one.
+
+        Falling back rather than erroring: a model-wide script plus overrides
+        for the two cases that need different answers is how these are
+        actually written, and demanding an entry per case would make the
+        config longer than the dataset.
+        """
+        ctx = get_context()
+        if ctx is not None:
+            scoped = self._by_case.get(ctx.case_id)
+            if scoped:
+                return scoped
+        return self._script
+
+    # ----------------------------------------------------------- script position
+    #
+    # A script describes how a model behaves, so every execution has to start
+    # at turn 0. The position therefore lives on the *execution*, not on the
+    # client: the matrix runner shares one client per model across all 90
+    # executions - it has to, because that is what shares the per-endpoint
+    # concurrency limit - and a per-client counter would have execution 2 start
+    # at the compose turn and fail its routing schema. Which is a failure the
+    # harness invented, in the one provider whose whole job is to be
+    # predictable.
+    #
+    # Outside a run there is no execution to key on, and the client's own
+    # counter is exactly right: a test driving the client directly means
+    # "fails, then succeeds on the re-ask".
+
+    def _key(self) -> str:
+        return f"fake_turn:{self.spec.id}:{self.spec.model}"
+
+    def _position(self) -> int:
+        ctx = get_context()
+        if ctx is None:
+            return self._calls
+        return int(ctx.metadata.get(self._key(), 0))
+
+    def _advance(self) -> None:
+        ctx = get_context()
+        if ctx is None:
+            return
+        ctx.metadata[self._key()] = self._position() + 1
 
     def _render(
         self, turn: FakeTurn, rung: Rung | None, schema: type[BaseModel] | None
@@ -225,7 +291,11 @@ def _turns_from_config(spec: ClientSpec) -> list[FakeTurn]:
         extra_body.unsupported = ["tools", "json_schema"]
         extra_body.script = [{ text = '{"intent": "refund"}' }]
     """
-    raw = spec.extra_body.get("script")
+    return _turns_from_list(spec.extra_body.get("script"))
+
+
+def _turns_from_list(raw: object) -> list[FakeTurn]:
+    """One script, as a list of strings or tables."""
     if not isinstance(raw, list):
         return []
     turns: list[FakeTurn] = []
@@ -249,6 +319,32 @@ def _turns_from_config(spec: ClientSpec) -> list[FakeTurn]:
             )
         )
     return turns
+
+
+def _resolve_case_scripts(spec: ClientSpec) -> dict[str, list[FakeTurn]]:
+    """Per-case scripts, from the registry and from ``extra_body.script_by_case``.
+
+        [baseline]
+        provider = "fake"
+        model = "scripted"
+        extra_body.script = [{ text = '{"intent": "other"}' }]
+        extra_body.script_by_case.refund_207 = [{ text = '{"intent": "refund"}' }]
+    """
+    out: dict[str, list[FakeTurn]] = {
+        case_id: list(turns)
+        for (model, case_id), turns in SCRIPTS_BY_CASE.items()
+        if model == spec.model
+    }
+    raw = spec.extra_body.get("script_by_case")
+    if raw is None:
+        return out
+    if not isinstance(raw, dict):
+        raise ValueError(
+            "extra_body.script_by_case must be a table of case_id -> script"
+        )
+    for case_id, turns in raw.items():
+        out[str(case_id)] = _turns_from_list(turns)
+    return out
 
 
 def _unsupported_from_config(spec: ClientSpec) -> list[str]:

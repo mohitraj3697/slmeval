@@ -37,9 +37,20 @@ Alpha, and honest about it. What works today:
 | `slmeval init` | scaffold `eval.toml`, a starter dataset and a target stub |
 | `slmeval doctor` | check Python, storage, credentials and provider reachability |
 | `slmeval validate` | validate the config, the dataset, and the links between them |
+| `slmeval record` | execute the real tools once and cache them for replay |
+| `slmeval run` | run the candidate matrix and print the scorecard |
+| `slmeval report` | re-render the scorecard from a stored run, as a table, JSON, Markdown or CSV |
 | `slmeval dataset validate` | check a golden dataset on its own |
 | `slmeval cache stats` | what the trace store holds, and what it costs on disk |
 | `slmeval cache prune` | drop runs older than a cutoff and free the payloads nothing references |
+
+The bundled example runs offline, with no API key and no GPU:
+
+```bash
+cd examples/support_agent
+slmeval record      # execute the real tools once, cache them
+slmeval run         # replay them against every candidate
+```
 
 And as a library, the halves of the harness that are built:
 
@@ -61,11 +72,18 @@ A worked example lives in [`examples/support_agent/`](examples/support_agent):
 four nodes, five sandboxed tools, no framework, and tools that return
 `datetime`, `Decimal` and `StrEnum` values so the round trip is actually tested.
 
-`record`, `run`, `report`, `compare`, `show`, `gate` and `cassette` are
-scaffolded and listed in `--help`, but not implemented yet — they say which step
-delivers them when you call them. The sandbox works as a library today,
-including the cassette-miss diagnosis block and fault injection; the commands
-that drive it over a whole dataset need the matrix runner, which is week 2.
+`compare`, `show`, `gate` and `cassette` are scaffolded and listed in
+`--help`, but not implemented yet — they say which step delivers them when you
+call them. Everything they need is already stored: a run's rows carry the
+provenance `compare` has to check, the traces `show` has to print, and the
+Wilson bounds `gate` has to read.
+
+Two numbers in that table are worth reading twice. `pass^3` is the fraction of
+cases that passed **every** repeat, not an average — an agent you cannot retry
+has to pass every time. And the interval beside it is the Wilson 95% bound on
+that fraction, which is what to gate on: three passes out of three is a point
+estimate of 100% whose lower bound is about 44%, so a gate set on the point
+estimate will cheerfully approve a model that fails one run in four.
 
 ### What a cassette miss tells you
 
