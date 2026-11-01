@@ -6,6 +6,8 @@ stop running because it is slow or flaky protects nothing.
 
 from __future__ import annotations
 
+import difflib
+import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -64,6 +66,55 @@ def mock_http() -> Iterator[Callable[[Callable[[httpx.Request], httpx.Response]]
     yield factory
     for client in clients:
         client.close()
+
+
+SNAPSHOTS = Path(__file__).parent / "snapshots"
+
+UPDATE_SNAPSHOTS = "SLMEVAL_UPDATE_SNAPSHOTS"
+
+
+def assert_snapshot(name: str, text: str) -> None:
+    """Compare rendered output with a golden file under ``tests/snapshots``.
+
+    Run the suite with ``SLMEVAL_UPDATE_SNAPSHOTS=1`` to rewrite them; the diff
+    in the commit is then the review. That escape hatch is the whole reason
+    these are trustworthy: a snapshot nobody can regenerate gets deleted the
+    first time it fails, which protects nothing.
+
+    Trailing spaces are stripped per line, because a table cell padded out to
+    the console width is not a fact about the table - and any editor would
+    silently "fix" it in the golden file anyway.
+    """
+    normalized = text.replace("\r\n", "\n")
+    rendered = "\n".join(line.rstrip() for line in normalized.split("\n"))
+    rendered = rendered.strip("\n") + "\n"
+    path = SNAPSHOTS / f"{name}.txt"
+
+    if os.environ.get(UPDATE_SNAPSHOTS):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rendered, encoding="utf-8", newline="\n")
+        return
+
+    if not path.exists():
+        raise AssertionError(
+            f"no snapshot for {name!r}. Re-run with {UPDATE_SNAPSHOTS}=1 to create "
+            f"{path}, then read the diff before committing it."
+        )
+
+    expected = path.read_text(encoding="utf-8")
+    if rendered != expected:
+        diff = "".join(
+            difflib.unified_diff(
+                expected.splitlines(keepends=True),
+                rendered.splitlines(keepends=True),
+                fromfile=f"{name}.txt (committed)",
+                tofile=f"{name}.txt (rendered)",
+            )
+        )
+        raise AssertionError(
+            f"{name} no longer renders the same table:\n\n{diff}\n"
+            f"If the change is intended, re-run with {UPDATE_SNAPSHOTS}=1."
+        )
 
 
 def write_config(directory: Path, body: str) -> Path:

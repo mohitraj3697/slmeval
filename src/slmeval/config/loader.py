@@ -18,7 +18,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from slmeval.config.locate import locate
-from slmeval.config.models import EvalConfig
+from slmeval.config.models import EvalConfig, ModelCfg
 from slmeval.errors import ConfigError, Problem
 
 DEFAULT_CONFIG_NAME = "eval.toml"
@@ -109,7 +109,87 @@ def load_config(path: Path) -> LoadedConfig:
             problems=_problems_from(exc, text),
         ) from exc
 
-    return LoadedConfig(config=config, path=path, text=text)
+    loaded = LoadedConfig(config=config, path=path, text=text)
+    _settle_fake_scripts(loaded)
+    return loaded
+
+
+def _settle_fake_scripts(loaded: LoadedConfig) -> None:
+    """Validate every `fake` script, and inline the fixture files it points at.
+
+    Two things happen here, both so that a scripted model behaves like a
+    configured one rather than a special case.
+
+    A ``script_file`` is read now and its table merged into the candidate's
+    ``extra_body``, then the key is dropped. That resolves the path against the
+    directory holding ``eval.toml`` - ``slmeval run -c ../other/eval.toml`` has
+    to mean what running from that directory means - and it puts the fixture's
+    *content* into :meth:`EvalConfig.config_hash` instead of an absolute path,
+    so the same benchmark hashes the same on two machines and an edited fixture
+    is correctly a different benchmark.
+
+    And every script is parsed here, while we still have the file and its line
+    numbers. Left to the provider, a typo would surface as a ``ValueError``
+    raised inside slmeval midway through a matrix, which the outcome classifier
+    reads - correctly, by its own rules - as a harness bug.
+    """
+    from slmeval.providers.fake import load_script_file, validate_extra_body
+
+    for loc, cfg in _model_locations(loaded.config):
+        if cfg.provider != "fake":
+            continue
+        extra = cfg.extra_body
+        key = "script_file" if "script_file" in extra else "script"
+        try:
+            if "script_file" in extra:
+                if "script" in extra:
+                    raise ValueError(
+                        "set extra_body.script or extra_body.script_file, not both - "
+                        "two scripts for one model has no defined order"
+                    )
+                fixture = Path(str(extra.pop("script_file"))).expanduser()
+                if not fixture.is_absolute():
+                    fixture = (loaded.root / fixture).resolve()
+                table = load_script_file(fixture)
+                # Inline entries win over the fixture's, per case, so a file
+                # holding the whole dataset plus one override reads the way it
+                # looks.
+                by_case = dict(table.get("script_by_case") or {})
+                by_case.update(extra.get("script_by_case") or {})
+                if by_case:
+                    extra["script_by_case"] = by_case
+                for name in ("script", "unsupported"):
+                    if name in table and name not in extra:
+                        extra[name] = table[name]
+            validate_extra_body(extra)
+        except ValueError as exc:
+            raise ConfigError(
+                f"{cfg.id}: invalid script for provider 'fake'",
+                source=loaded.path,
+                problems=[
+                    Problem(
+                        path=format_loc((*loc, "extra_body", key)),
+                        message=str(exc),
+                        # Either spelling: a dotted `extra_body.script = ...`
+                        # line, or a `[baseline.extra_body]` table.
+                        line=(
+                            locate(loaded.text, (*loc, "extra_body", key))
+                            or locate(loaded.text, (*loc, f"extra_body.{key}"))
+                        ),
+                    )
+                ],
+                hint=(
+                    "a fake script is a list of turns: "
+                    "extra_body.script = [{ kind = \"fenced_json\", text = '{}' }]"
+                ),
+            ) from exc
+
+
+def _model_locations(config: EvalConfig) -> list[tuple[tuple[str | int, ...], ModelCfg]]:
+    """Every model with the config path it was written at, for error messages."""
+    out: list[tuple[tuple[str | int, ...], ModelCfg]] = [(("baseline",), config.baseline)]
+    out += [(("candidates", i), cfg) for i, cfg in enumerate(config.candidates)]
+    return out
 
 
 def _problems_from(exc: ValidationError, text: str) -> list[Problem]:

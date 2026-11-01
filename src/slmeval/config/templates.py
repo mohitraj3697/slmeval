@@ -96,6 +96,18 @@ adapter = "generic"
 #   model = "gpt-4o"
 #   api_key_env = "OPENAI_API_KEY"
 #
+# Unscripted, `fake` answers every schema with a blank but valid object - which
+# runs, and passes nothing. Give it a script and the baseline becomes a free,
+# reproducible reference: one turn per model call, the last turn repeating.
+#
+#   extra_body.script = [
+#       {{ text = '{{"intent": "order_status"}}' }},
+#       {{ kind = "fenced_json", text = '{{"final_answer": "shipped"}}' }},
+#   ]
+#
+# `kind` names a misbehaviour to script instead - fenced_json, invalid_schema,
+# rate_limit, timeout, hallucinated_tool, loop and the rest. A long script
+# belongs in its own file: extra_body.script_file = "./fakes/baseline.toml".
 [baseline]
 provider = "fake"
 model = "scripted-baseline"

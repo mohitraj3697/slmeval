@@ -186,8 +186,9 @@ always fails. Naming the two nodes that don't need frontier reasoning is where
 the large cost cut with no accuracy loss lives.
 
 Providers: `openai`, `ollama`, `openai_compatible` (llama.cpp server, LM Studio,
-vLLM, Together, Groq, OpenRouter), and `fake` for tests. `anthropic` is accepted
-by the config and not yet wired up.
+vLLM, Together, Groq, OpenRouter), and [`fake`](#the-fake-provider), a scripted
+model for offline runs. `anthropic` is accepted by the config and not yet wired
+up.
 
 ### Structured output is measured, not assumed
 
@@ -218,6 +219,73 @@ does not, they are estimated and marked `~` everywhere they appear. Retries are
 excluded from latency and counted separately, so a candidate needing three
 retries per call cannot hide behind a healthy p95.
 
+### The `fake` provider
+
+`provider = "fake"` is a scripted model: it never touches the network, costs
+nothing, and does exactly the same thing on every machine. It is a shipped
+feature, not a test fixture, and it is good for three things:
+
+- **A reference run that is free and reproducible.** Point `[baseline]` at it
+  and every candidate is measured against a fixed script rather than against
+  whatever GPT-4o did that afternoon.
+- **A smoke test of your own wiring.** `slmeval run` exercises the config, the
+  dataset, the sandbox, the evaluators and the report without spending a cent.
+- **Benchmarking the failure, not the model.** What breaks agents on small
+  models is a prose preamble around the JSON, a dropped `ORD-` prefix, a 429 on
+  step four. Those are scriptable; a real 4B model will do something slightly
+  different tomorrow.
+
+Each turn is one response, consumed in order, and the last one repeats - so a
+one-turn script is a model that always answers that way:
+
+```toml
+[[candidates]]
+id = "weak-4b"
+provider = "fake"
+model = "weak-4b"
+extra_body.unsupported = ["tools", "json_schema"]   # rungs this server rejects
+extra_body.script = [
+    { kind = "fenced_json", text = '{"intent": "order_status"}' },
+    { kind = "rate_limit" },
+    { text = '{"final_answer": "shipped"}', usage = [120, 18], latency_ms = 240 },
+]
+```
+
+`kind` names a misbehaviour and `text` is the payload it wraps:
+
+| `kind` | What the model does |
+|---|---|
+| `valid_json` | clean, parseable, schema-valid |
+| `fenced_json` | a prose preamble and a ```` ```json ```` block |
+| `prose_json` | the object buried in a sentence |
+| `trailing_comma` | JSON our repair stage has to fix |
+| `invalid_schema` | parses, wrong fields |
+| `not_json` / `empty` | prose only, or nothing |
+| `refusal` | answers in words on the forced-tool rung |
+| `hallucinated_tool` / `hallucinated_args` | calls a tool that does not exist, or with arguments it does not take |
+| `timeout` / `unreachable` | the endpoint never answers |
+| `rate_limit` / `server_error` / `bad_request` | 429, 5xx, 400 |
+| `loop` | the same answer forever, until `max_steps` stops the agent |
+
+One model has to answer a whole dataset, so scripts can be per case - a shared
+script would have the scripted baseline fail most of its own cases:
+
+```toml
+[baseline.extra_body.script_by_case]
+refund_207 = [{ text = '{"intent": "refund", "order_id": "ORD-7310"}' }]
+```
+
+Longer scripts belong in their own file, which keeps `eval.toml` readable:
+
+```toml
+extra_body.script_file = "./fakes/weak-4b.toml"   # TOML or JSON
+```
+
+The file holds the same three keys (`script`, `script_by_case`, `unsupported`),
+its path resolves against `eval.toml`, and its *contents* go into the config
+hash - so the same benchmark hashes the same in two checkouts, and editing the
+fixture is correctly a different benchmark.
+
 ## Privacy
 
 Local-first, and not in a marketing sense:
@@ -237,9 +305,36 @@ uv run pytest -m live     # opt-in: hits whichever providers are reachable
 uv run slmeval --help
 ```
 
-The default suite runs fully offline against a scripted fake provider, in about
-two seconds. `-m live` is excluded from it on purpose: a suite that costs money
-or needs a GPU is a suite people stop running.
+The default suite is ~950 tests in under 30 seconds, fully offline against the
+scripted [`fake` provider](#the-fake-provider): every evaluator and every
+failure classification is asserted against a scripted model rather than a real
+one. `-m live` is excluded on purpose - a suite that costs money or needs a GPU
+is a suite people stop running, and a suite people stop running protects
+nothing. The 30-second budget is enforced in CI for the same reason.
+
+Three parts of it are worth knowing about before you change anything:
+
+```bash
+uv run pytest tests/test_determinism.py    # same seed twice -> the same report
+uv run pytest tests/test_failure_matrix.py # one candidate per way a run can fail
+uv run pytest tests/test_snapshots.py      # every rendered table, pinned
+```
+
+The tables under `tests/snapshots/` are golden files. When you change what the
+scorecard prints, regenerate them and review the diff as part of the change:
+
+```bash
+SLMEVAL_UPDATE_SNAPSHOTS=1 uv run pytest tests/test_snapshots.py
+```
+
+And because `pytest` runs against the working tree rather than the artifact,
+the wheel gets its own check - a fresh virtualenv, the built wheel and nothing
+else, then `init`, `validate`, `doctor`, `record`, `run` and `report` as a new
+user meets them:
+
+```bash
+python scripts/install_smoke.py
+```
 
 ## License
 

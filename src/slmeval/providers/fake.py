@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Sequence
-from dataclasses import dataclass, field
+import tomllib
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
@@ -36,6 +38,7 @@ from slmeval.providers.base import (
     ProviderError,
     ProviderRequestError,
     ProviderServerError,
+    ProviderUnreachable,
     RateLimited,
     Rung,
     ToolCall,
@@ -64,12 +67,116 @@ class FakeTurn:
     unsupported: frozenset[str] = frozenset()
     """Rungs this turn rejects, as a server would with a 400."""
     status: int | None = None
-    """Simulate an HTTP failure. 429 and 5xx are raised as transient, so the
-    retry path is testable without waiting on a real rate limit."""
+    """Simulate an HTTP failure. 429 and 5xx keep their own transient types and
+    400 keeps its permanent one, because the retry policy and the outcome
+    classifier both read the type rather than the number."""
     usage: tuple[int, int] | None = None
     """(prompt, completion) when the server reports usage. None means it does
     not, which exercises the estimate-and-flag path."""
     latency_ms: float = 0.0
+    """Reported as this call's latency; **not** slept. A suite that really
+    waited would stop being run, and the thing under test is what the report
+    does with a slow model, not our ability to call `sleep`. For an execution
+    that genuinely outlives `timeout_s`, make the agent wait."""
+    error: str | None = None
+    """A transport failure with no HTTP status: ``"unreachable"`` or
+    ``"timeout"``.
+
+    A model server that is down is the most common way a benchmark fails, and
+    the exit code for it - 3, environment, never 1 - is a documented contract
+    that CI scripts branch on. Asserting that against a real socket costs two
+    seconds per attempt on Windows, where a refused connect to a local port
+    sits in SYN retry; scripting it here costs nothing and classifies
+    identically, because both arrive as :class:`ProviderUnreachable`."""
+
+
+_OK_PAYLOAD = '{"ok": true}'
+"""Stand-in payload for the shapes that are about *form*, not content."""
+
+
+def _with_trailing_comma(payload: str) -> str:
+    body = payload.rstrip()
+    if body.endswith(("}", "]")):
+        return f"{body[:-1]},{body[-1]}"
+    return f"{body},"
+
+
+MISBEHAVIOURS: dict[str, Callable[[str | None], FakeTurn]] = {
+    # The happy path, for contrast.
+    "valid_json": lambda p: FakeTurn(text=p or _OK_PAYLOAD),
+    # Extraction-cascade territory: the content is right, the envelope is not.
+    "fenced_json": lambda p: FakeTurn(
+        text=f"Sure! Here is the result:\n```json\n{p or _OK_PAYLOAD}\n```"
+    ),
+    "prose_json": lambda p: FakeTurn(
+        text=f"Of course - the answer is {p or _OK_PAYLOAD}. Let me know if you need more."
+    ),
+    "trailing_comma": lambda p: FakeTurn(text=_with_trailing_comma(p or _OK_PAYLOAD)),
+    # Parses as JSON, is not the schema we asked for. A different failure from
+    # "not JSON at all", and the two must not share a metric.
+    "invalid_schema": lambda p: FakeTurn(text=p or '{"vibes": "immaculate"}'),
+    "not_json": lambda p: FakeTurn(text=p or "I think they want a refund, probably."),
+    "empty": lambda p: FakeTurn(text=p or ""),
+    # Answered in prose on the tools rung: the model ignored a forced tool
+    # call. Very common on small models, and not the same as calling it badly.
+    "refusal": lambda p: FakeTurn(
+        text=p or "Sorry, I cannot help with that.", refuse_tool_call=True
+    ),
+    "hallucinated_tool": lambda p: FakeTurn(
+        tool_calls=[
+            ToolCall(
+                id="call_0",
+                name=p or "frobnicate_order",
+                arguments={},
+                raw_arguments="{}",
+            )
+        ]
+    ),
+    "hallucinated_args": lambda p: FakeTurn(
+        tool_calls=[
+            ToolCall(
+                id="call_0",
+                name=p or "fetch_order",
+                arguments={"ordr_id": "9921", "urgent": True},
+                raw_arguments='{"ordr_id": "9921", "urgent": true}',
+            )
+        ]
+    ),
+    "timeout": lambda p: FakeTurn(error="timeout"),
+    "unreachable": lambda p: FakeTurn(error="unreachable"),
+    "rate_limit": lambda p: FakeTurn(status=429),
+    "server_error": lambda p: FakeTurn(status=503),
+    "bad_request": lambda p: FakeTurn(status=400),
+    # The last turn of a script repeats, so a one-turn script *is* a model
+    # that answers this way forever. Named, because "the agent loops until the
+    # step budget stops it" is a scripted scenario rather than an accident.
+    "loop": lambda p: FakeTurn(text=p or _OK_PAYLOAD),
+}
+"""Named model misbehaviours, each as one turn.
+
+Every one of these is something a 4B model does in the wild and none of them
+can be pinned in a regression test against a real one - it will do something
+slightly different tomorrow. Naming them is what lets a test say *which*
+misbehaviour it covers, instead of embedding a hand-written prose preamble the
+next reader has to decode. The same names work from TOML (``kind = ...``), so
+an offline benchmark of badly behaved models needs no Python at all.
+"""
+
+
+def misbehaviour(kind: str, payload: str | None = None, **overrides: Any) -> FakeTurn:
+    """One entry of :data:`MISBEHAVIOURS`, with ``payload`` as its content.
+
+    ``overrides`` are :class:`FakeTurn` fields applied on top, so
+    ``misbehaviour("fenced_json", body, latency_ms=800)`` is a slow model that
+    also cannot emit bare JSON.
+    """
+    build = MISBEHAVIOURS.get(kind)
+    if build is None:
+        raise ValueError(
+            f"unknown fake behaviour {kind!r}; known: {', '.join(sorted(MISBEHAVIOURS))}"
+        )
+    turn = build(payload)
+    return replace(turn, **overrides) if overrides else turn
 
 
 SCRIPTS: dict[str, list[FakeTurn]] = {}
@@ -117,10 +224,11 @@ class FakeClient(LadderClient):
         unsupported: Sequence[str] | None = None,
     ) -> None:
         super().__init__(spec)
-        self._script = list(script) if script is not None else _resolve_script(spec)
-        self._by_case = {} if script is not None else _resolve_case_scripts(spec)
+        declared = _declared(spec)
+        self._script = list(script) if script is not None else declared.script
+        self._by_case = {} if script is not None else declared.by_case
         self._always_unsupported = frozenset(
-            unsupported if unsupported is not None else _unsupported_from_config(spec)
+            unsupported if unsupported is not None else declared.unsupported
         )
         self._calls = 0
         self.seen: list[dict[str, Any]] = []
@@ -160,6 +268,8 @@ class FakeClient(LadderClient):
 
         if rung is not None and rung in turn.unsupported:
             raise UnsupportedFeature(rung, "scripted rejection")
+        if turn.error is not None:
+            raise _transport_error(turn.error, self.spec)
         if turn.status is not None:
             raise _http_error(turn.status)
 
@@ -275,54 +385,255 @@ class FakeClient(LadderClient):
         return text, calls
 
 
-def _resolve_script(spec: ClientSpec) -> list[FakeTurn]:
-    """A registered script by model name, or one declared inline in eval.toml."""
-    if spec.model in SCRIPTS:
-        return list(SCRIPTS[spec.model])
-    return _turns_from_config(spec)
+EXTRA_BODY_KEYS = frozenset({"script", "script_by_case", "script_file", "unsupported"})
+"""Everything `fake` reads from ``extra_body``.
+
+Checked rather than ignored: ``extra_body`` is provider passthrough, so a
+``scripts = [...]`` typo would otherwise leave a fake that silently
+synthesizes schema-valid blanks - a run that looks like a pass and measures
+nothing.
+"""
 
 
-def _turns_from_config(spec: ClientSpec) -> list[FakeTurn]:
-    """Read ``extra_body.script`` so an offline benchmark is expressible in TOML.
+@dataclass(frozen=True, slots=True)
+class _Declared:
+    """What a config says this fake does, before any per-execution state."""
+
+    script: list[FakeTurn] = field(default_factory=list)
+    by_case: dict[str, list[FakeTurn]] = field(default_factory=dict)
+    unsupported: list[str] = field(default_factory=list)
+
+
+def validate_extra_body(extra: Mapping[str, Any]) -> None:
+    """Parse everything `fake` reads from one ``extra_body``, and discard it.
+
+    Called by the config loader so a typo in a script fails at load with a
+    line number. The alternative is a ``ValueError`` raised inside the provider
+    thirty executions into a matrix, where the outcome classifier attributes
+    anything raised inside slmeval to slmeval - printing a user's typo as a
+    harness bug, which is the one classification we must never get wrong.
+    """
+    _declared_from(extra, model="")
+
+
+def _declared(spec: ClientSpec) -> _Declared:
+    return _declared_from(spec.extra_body, spec.model)
+
+
+def _declared_from(extra: Mapping[str, Any], model: str) -> _Declared:
+    """Merge the three places a script can come from, in precedence order.
+
+    A registry entry (``register_script``) beats the config, because that is a
+    test or a harness pinning behaviour deliberately; inline ``extra_body``
+    beats a fixture file, because an override belongs next to the candidate it
+    applies to. Per-case entries merge across all three rather than replacing
+    one another: a fixture file carrying the whole dataset plus one inline
+    override for the case under test is the shape these actually take.
+    """
+    unknown = sorted(set(extra) - EXTRA_BODY_KEYS)
+    if unknown:
+        raise ValueError(
+            f"provider 'fake' does not understand extra_body key(s) "
+            f"{', '.join(unknown)} (known: {', '.join(sorted(EXTRA_BODY_KEYS))})"
+        )
+    if "script" in extra and "script_file" in extra:
+        raise ValueError(
+            "set extra_body.script or extra_body.script_file, not both - "
+            "two scripts for one model has no defined order"
+        )
+
+    fixture = _load_fixture(extra["script_file"]) if "script_file" in extra else _Declared()
+
+    script = (
+        list(SCRIPTS[model])
+        if model in SCRIPTS
+        else _turns_from_list(extra.get("script")) or fixture.script
+    )
+
+    by_case: dict[str, list[FakeTurn]] = dict(fixture.by_case)
+    by_case.update(_case_scripts_from(extra.get("script_by_case")))
+    by_case.update(
+        {
+            case_id: list(turns)
+            for (registered, case_id), turns in SCRIPTS_BY_CASE.items()
+            if registered == model
+        }
+    )
+
+    unsupported = _unsupported_from(extra.get("unsupported")) or fixture.unsupported
+    return _Declared(script=script, by_case=by_case, unsupported=unsupported)
+
+
+def _load_fixture(raw: object) -> _Declared:
+    """Read a script fixture off disk.
 
         [[candidates]]
         provider = "fake"
-        model = "offline"
-        extra_body.unsupported = ["tools", "json_schema"]
-        extra_body.script = [{ text = '{"intent": "refund"}' }]
+        model = "weak-4b"
+        extra_body.script_file = "./fakes/weak-4b.toml"
+
+    TOML or JSON, both in the standard library. Deliberately not YAML: TOML is
+    already this tool's config language, and a fixture format that needs a
+    third-party parser in the *core* install - which the test suite runs
+    against - is a dependency bought for nothing.
+
+    A fixture holds the same three keys a candidate can declare inline::
+
+        unsupported = ["tools", "json_schema"]
+
+        [[script]]
+        kind = "fenced_json"
+        text = '{"intent": "order_status"}'
+
+        [script_by_case]
+        refund_207 = [{ kind = "invalid_schema" }]
+
+    Relative paths resolve against the directory holding ``eval.toml`` - the
+    config loader rewrites them before the provider sees them - so a benchmark
+    stays runnable from any working directory.
     """
-    return _turns_from_list(spec.extra_body.get("script"))
+    if not isinstance(raw, str):
+        raise ValueError("extra_body.script_file must be a path")
+    data = load_script_file(raw)
+    return _Declared(
+        script=_turns_from_list(data.get("script")),
+        by_case=_case_scripts_from(data.get("script_by_case")),
+        unsupported=_unsupported_from(data.get("unsupported")),
+    )
+
+
+def load_script_file(raw: str | Path) -> dict[str, Any]:
+    """Read one fixture and return its table, validated.
+
+    The config loader calls this and inlines the result into the candidate's
+    ``extra_body``, which is what keeps the fixture's *content* rather than its
+    path in the benchmark's config hash: the same fixture in two checkouts is
+    the same benchmark, and an edited fixture is a different one.
+    """
+    path = Path(raw)
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise ValueError(f"could not read fake script file {path}: {exc}") from exc
+
+    try:
+        data = json.loads(text) if path.suffix.lower() == ".json" else tomllib.loads(text)
+    except (tomllib.TOMLDecodeError, json.JSONDecodeError) as exc:
+        kind = path.suffix.lstrip(".").lower() or "toml"
+        raise ValueError(f"{path} is not valid {kind}: {exc}") from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must hold a table with a 'script' key, not a bare list")
+    unknown = sorted(set(data) - EXTRA_BODY_KEYS)
+    if unknown:
+        raise ValueError(f"unknown key(s) in {path}: {', '.join(unknown)}")
+    if "script_file" in data:
+        raise ValueError(f"{path} cannot point at another script_file")
+
+    # Building the turns *is* the validation; they are rebuilt per client.
+    _turns_from_list(data.get("script"))
+    _case_scripts_from(data.get("script_by_case"))
+    _unsupported_from(data.get("unsupported"))
+    return {key: value for key, value in data.items() if key in EXTRA_BODY_KEYS}
 
 
 def _turns_from_list(raw: object) -> list[FakeTurn]:
     """One script, as a list of strings or tables."""
     if not isinstance(raw, list):
         return []
-    turns: list[FakeTurn] = []
-    for item in raw:
-        if isinstance(item, str):
-            turns.append(FakeTurn(text=item))
-            continue
-        if not isinstance(item, dict):
-            raise ValueError(
-                f"fake script entries must be strings or tables, got {type(item).__name__}"
-            )
-        usage = item.get("usage")
-        turns.append(
-            FakeTurn(
-                text=item.get("text"),
-                refuse_tool_call=bool(item.get("refuse_tool_call", False)),
-                unsupported=frozenset(item.get("unsupported", ())),
-                status=item.get("status"),
-                usage=(int(usage[0]), int(usage[1])) if isinstance(usage, (list, tuple)) else None,
-                latency_ms=float(item.get("latency_ms", 0.0)),
+    return [_turn_from_entry(item) for item in raw]
+
+
+_ENTRY_KEYS = frozenset(
+    {
+        "kind",
+        "text",
+        "tool_calls",
+        "refuse_tool_call",
+        "unsupported",
+        "status",
+        "error",
+        "usage",
+        "latency_ms",
+    }
+)
+
+
+def _turn_from_entry(item: object) -> FakeTurn:
+    """One turn, as written in TOML or JSON.
+
+    ``kind`` names an entry of :data:`MISBEHAVIOURS` and every other key is an
+    override on it, so the common cases are one word:
+
+        script = [
+            { kind = "fenced_json", text = '{"intent": "refund"}' },
+            { kind = "rate_limit" },
+            { kind = "valid_json", text = '{"done": true}', latency_ms = 250 },
+        ]
+    """
+    if isinstance(item, str):
+        return FakeTurn(text=item)
+    if not isinstance(item, dict):
+        raise ValueError(
+            f"fake script entries must be strings or tables, got {type(item).__name__}"
+        )
+    unknown = sorted(set(item) - _ENTRY_KEYS)
+    if unknown:
+        raise ValueError(
+            f"unknown key(s) in a fake script entry: {', '.join(unknown)} "
+            f"(known: {', '.join(sorted(_ENTRY_KEYS))})"
+        )
+
+    usage = item.get("usage")
+    fields: dict[str, Any] = {
+        "refuse_tool_call": bool(item.get("refuse_tool_call", False)),
+        "unsupported": frozenset(item.get("unsupported", ())),
+        "status": item.get("status"),
+        "error": item.get("error"),
+        "usage": (int(usage[0]), int(usage[1])) if isinstance(usage, (list, tuple)) else None,
+        "latency_ms": float(item.get("latency_ms", 0.0)),
+    }
+    if "tool_calls" in item:
+        fields["tool_calls"] = _tool_calls_from_list(item["tool_calls"])
+
+    kind = item.get("kind")
+    if kind is None:
+        return FakeTurn(text=item.get("text"), **fields)
+
+    # `kind` builds the turn and the rest overrides it, so `text` means "the
+    # payload this shape wraps" rather than "the literal message content".
+    base = misbehaviour(str(kind), item.get("text"))
+    explicit = {name: value for name, value in fields.items() if name in item}
+    return replace(base, **explicit) if explicit else base
+
+
+def _tool_calls_from_list(raw: object) -> list[ToolCall]:
+    """Tool calls the scripted model requests, for hallucinated names and args.
+
+        tool_calls = [{ name = "issue_refund", arguments = { order_id = "ORD-1" } }]
+    """
+    if not isinstance(raw, list):
+        raise ValueError("tool_calls must be a list of tables")
+    calls: list[ToolCall] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, Mapping) or "name" not in item:
+            raise ValueError("each tool_calls entry must be a table with a 'name'")
+        arguments = item.get("arguments") or {}
+        if not isinstance(arguments, Mapping):
+            raise ValueError(f"tool_calls[{index}].arguments must be a table")
+        calls.append(
+            ToolCall(
+                id=str(item.get("id") or f"call_{index}"),
+                name=str(item["name"]),
+                arguments=dict(arguments),
+                raw_arguments=json.dumps(arguments),
             )
         )
-    return turns
+    return calls
 
 
-def _resolve_case_scripts(spec: ClientSpec) -> dict[str, list[FakeTurn]]:
-    """Per-case scripts, from the registry and from ``extra_body.script_by_case``.
+def _case_scripts_from(raw: object) -> dict[str, list[FakeTurn]]:
+    """Per-case scripts, as a table of case id -> script.
 
         [baseline]
         provider = "fake"
@@ -330,30 +641,38 @@ def _resolve_case_scripts(spec: ClientSpec) -> dict[str, list[FakeTurn]]:
         extra_body.script = [{ text = '{"intent": "other"}' }]
         extra_body.script_by_case.refund_207 = [{ text = '{"intent": "refund"}' }]
     """
-    out: dict[str, list[FakeTurn]] = {
-        case_id: list(turns)
-        for (model, case_id), turns in SCRIPTS_BY_CASE.items()
-        if model == spec.model
-    }
-    raw = spec.extra_body.get("script_by_case")
     if raw is None:
-        return out
-    if not isinstance(raw, dict):
-        raise ValueError(
-            "extra_body.script_by_case must be a table of case_id -> script"
-        )
-    for case_id, turns in raw.items():
-        out[str(case_id)] = _turns_from_list(turns)
-    return out
+        return {}
+    if not isinstance(raw, Mapping):
+        raise ValueError("script_by_case must be a table of case_id -> script")
+    return {str(case_id): _turns_from_list(turns) for case_id, turns in raw.items()}
 
 
-def _unsupported_from_config(spec: ClientSpec) -> list[str]:
-    raw = spec.extra_body.get("unsupported")
+def _unsupported_from(raw: object) -> list[str]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError("extra_body.unsupported must be a list of rung names")
+        raise ValueError("unsupported must be a list of rung names")
     return [str(r) for r in raw]
+
+
+def _transport_error(kind: str, spec: ClientSpec) -> ProviderError:
+    """A failure with no HTTP response, shaped like the real client's.
+
+    Both land as :class:`ProviderUnreachable` because that is what the
+    OpenAI-compatible client raises for a refused connect and for a read
+    timeout, and the classification the harness owes the user - "the server
+    was down, this is not a model regression" - follows from the type.
+    """
+    if kind == "timeout":
+        return ProviderUnreachable(
+            f"{spec.model} did not respond within {spec.read_timeout_s:g}s (scripted timeout)"
+        )
+    if kind == "unreachable":
+        return ProviderUnreachable(
+            f"cannot reach {spec.base_url or 'the scripted endpoint'} (scripted)"
+        )
+    raise ValueError(f"unknown fake error {kind!r}; expected 'timeout' or 'unreachable'")
 
 
 def _http_error(status: int) -> ProviderError:
@@ -427,4 +746,15 @@ def _fill(node: dict[str, Any], defs: dict[str, Any], depth: int = 0) -> Any:
     return ""
 
 
-__all__ = ["SCRIPTS", "FakeClient", "FakeTurn", "clear_scripts", "register_script"]
+__all__ = [
+    "EXTRA_BODY_KEYS",
+    "MISBEHAVIOURS",
+    "SCRIPTS",
+    "FakeClient",
+    "FakeTurn",
+    "clear_scripts",
+    "load_script_file",
+    "misbehaviour",
+    "register_script",
+    "validate_extra_body",
+]

@@ -1,0 +1,7 @@
+XX status_shipped · sloppy-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_ordr
+  called with: {"order_id": "ORD-9921"}
+  did you mean: fetch_order
+  verdict: hallucinated_tool
+  -> 'fetch_ordr' is not a sandboxed tool in this process and has never been recorded, so the model invented
+the name

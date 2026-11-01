@@ -227,7 +227,15 @@ def test_a_bad_tool_mode_is_rejected_before_anything_runs(demo: Path) -> None:
 
 def test_an_unreachable_provider_exits_three_not_one(demo: Path) -> None:
     """The distinction that stops "Ollama is down" from reading as "the model
-    regressed"."""
+    regressed".
+
+    Scripted rather than aimed at a dead socket. A refused connect to a local
+    port takes about two seconds per attempt on Windows, which bought this one
+    test a third of the whole suite's runtime - and the suite has to stay under
+    thirty seconds or it stops being run. What a real dead endpoint raises is
+    the same ProviderUnreachable, and that mapping is asserted against a mock
+    transport in test_openai_compat.
+    """
     (demo / "eval.toml").write_text(
         CONFIG.replace(
             """[baseline]
@@ -235,9 +243,9 @@ provider = "fake"
 model = "good"
 extra_body.script = [{ text = '{"intent": "ok"}' }]""",
             """[baseline]
-provider = "openai_compatible"
+provider = "fake"
 model = "nothing-here"
-base_url = "http://127.0.0.1:9"
+extra_body.script = [{ kind = "unreachable" }]
 """,
         ).replace(
             """[[candidates]]

@@ -6,3 +6,6 @@
 
 # Golden datasets are compared byte-for-byte; never let git touch them.
 *.jsonl text eol=lf
+
+# Rendered goldens, compared byte-for-byte against what the tool prints.
+tests/snapshots/*.txt text eol=lf

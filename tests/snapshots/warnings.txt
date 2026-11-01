@@ -1,0 +1,5 @@
+  XX FORBIDDEN tool call: issue_refund in status_other (refunder)
+  XX FORBIDDEN tool call: issue_refund in status_shipped (refunder)
+  !! some token counts were estimated, not reported by the provider - figures built from them are marked ~
+  -- latency not measured in this mode - requests ran concurrently, so a p95 would describe the scheduler
+rather than the model (re-run with --serial-latency)

@@ -1,0 +1,7 @@
+per-node attribution
+Node             baseline    fenced-json    sloppy-router    prose-only
+intent_router        4 ok           4 ok             4 ok      8 fail/4
+order_lookup            -              -           2 fail             -
+compose_reply        4 ok           2 ok                -             -
+
+  sloppy-router held up on intent_router and broke in order_lookup -> keep baseline on order_lookup

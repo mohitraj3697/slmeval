@@ -1,0 +1,8 @@
+XX status_shipped · sloppy-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "9921"}
+  nearest recorded: {"order_id": "ORD-9921"}
+  diff: order_id: "ORD-9921" -> "9921"   (dropped prefix)
+  verdict: hallucinated_parameter
+  -> order_id differs from the nearest recorded call in a way that corrupts it (dropped prefix), which is a
+model error rather than a new path
