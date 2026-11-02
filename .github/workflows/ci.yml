@@ -70,6 +70,39 @@ jobs:
             exit 1
           fi
 
+  # The one job that installs a model framework. The core must stay installable
+  # in seconds without one, so `langgraph` is an extra and the adapter's tests
+  # skip in every other job here - which means that without this job they would
+  # never run anywhere, and a skipped test reads as a passing one.
+  langgraph:
+    name: langgraph adapter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install, with the extra
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,langgraph]"
+
+      - name: The adapter, and the example under both adapters
+        run: python -m pytest tests/test_langgraph_adapter.py -v
+
+      - name: Nothing was skipped
+        shell: bash
+        run: |
+          # A green job that skipped the only two tests it exists to run would
+          # be worse than no job: it would read as coverage we do not have.
+          python -m pytest tests/test_langgraph_adapter.py -q -rs 2>&1 | tee out.txt
+          if grep -q "skipped" out.txt; then
+            echo "::error::a langgraph test skipped in the job that installs langgraph."
+            exit 1
+          fi
+
   install-smoke:
     name: install smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

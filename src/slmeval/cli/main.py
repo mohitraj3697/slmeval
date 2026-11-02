@@ -12,13 +12,17 @@ import typer
 
 from slmeval import __version__
 from slmeval.cli.commands import (
+    baseline_cmd,
     cache_cmd,
     dataset_cmd,
     doctor_cmd,
+    gate_cmd,
     init_cmd,
+    judge_cmd,
     record_cmd,
     report_cmd,
     run_cmd,
+    show_cmd,
     stubs,
     validate_cmd,
 )
@@ -70,6 +74,10 @@ dataset_cmd.register(app)
 record_cmd.register(app)
 run_cmd.register(app)
 report_cmd.register(app)
+show_cmd.register(app)
+gate_cmd.register(app)
+baseline_cmd.register(app)
+judge_cmd.register(app)
 cache_cmd.register(app)
 stubs.register(app)
 

@@ -239,9 +239,44 @@ class Migration:
     statements: tuple[str, ...]
 
 
+_V3: Final = (
+    # The Tier 3 judgement cache.
+    #
+    # Not scoped to a run, and that is the entire design: a judgement is a
+    # function of (rubric, reference, candidate output, judge model) and
+    # nothing else, so re-rendering a report, re-running a gate or judging the
+    # same unchanged output next week has to cost nothing. A cache keyed on the
+    # run would make `slmeval report` a billable operation, and a tool that
+    # charges you to look at yesterday's table twice is a tool people stop
+    # looking at.
+    #
+    # `order_shown` is kept because the judge is asked about a randomised A/B
+    # pair - position bias is real and large - and a cached verdict that could
+    # not say which side the candidate was on would be unauditable.
+    """
+    CREATE TABLE IF NOT EXISTS judgements (
+        cache_key       TEXT PRIMARY KEY,
+        judge_model     TEXT NOT NULL,
+        rubric_hash     TEXT NOT NULL,
+        verdict         TEXT NOT NULL,
+        score           REAL,
+        reasoning       TEXT,
+        cited_span      TEXT,
+        order_shown     TEXT NOT NULL,
+        prompt_tokens   INTEGER,
+        completion_tokens INTEGER,
+        created_at      TEXT NOT NULL,
+        slmeval_version TEXT NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS judgements_by_model ON judgements (judge_model)",
+)
+
+
 MIGRATIONS: Final[tuple[Migration, ...]] = (
     Migration(version=1, name="initial", statements=_V1),
     Migration(version=2, name="run_scheduling_mode", statements=_V2),
+    Migration(version=3, name="judgement_cache", statements=_V3),
 )
 
 SCHEMA_VERSION: Final = MIGRATIONS[-1].version

@@ -192,3 +192,39 @@ def test_config_hash_ignores_formatting_and_dataset_path() -> None:
 def test_config_hash_changes_with_a_setting_that_affects_results() -> None:
     assert _config().config_hash() != _config(seed=7).config_hash()
     assert _config().config_hash() != _config(runs_per_case=5).config_hash()
+
+
+def test_a_judge_nobody_configured_does_not_change_the_hash() -> None:
+    """Adding an off-by-default section must not invalidate every committed
+    baseline in existence: `gate --max-regression` refuses to compare across a
+    config-hash change, so a gratuitous change here breaks CI for a feature
+    its owner never turned on."""
+    data: dict = {
+        "benchmark": {"name": "t", "dataset": "d.jsonl"},
+        "target": {"entrypoint": "m:f"},
+        "baseline": {"provider": "fake", "model": "m"},
+    }
+    without = EvalConfig.model_validate(data).config_hash()
+    explicit_off = EvalConfig.model_validate(
+        {**data, "judge": {"provider": "openai", "model": ""}}
+    ).config_hash()
+    assert without == explicit_off
+
+
+def test_an_enabled_judge_does_change_the_hash() -> None:
+    """A pass rate that includes a judge's verdicts is a different
+    measurement, and two runs judged by different models are not comparable."""
+    data: dict = {
+        "benchmark": {"name": "t", "dataset": "d.jsonl"},
+        "target": {"entrypoint": "m:f"},
+        "baseline": {"provider": "fake", "model": "m"},
+    }
+    off = EvalConfig.model_validate(data).config_hash()
+    on = EvalConfig.model_validate(
+        {**data, "judge": {"provider": "openai", "model": "gpt-4o-mini"}}
+    ).config_hash()
+    other = EvalConfig.model_validate(
+        {**data, "judge": {"provider": "openai", "model": "gpt-4o"}}
+    ).config_hash()
+    assert off != on != other
+    assert off != other

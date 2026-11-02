@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -100,6 +101,42 @@ def test_validate_reports_the_matrix_size(project: Path, monkeypatch) -> None:
     monkeypatch.chdir(project)
     out = text_of(runner.invoke(app, ["validate"]))
     assert "executions" in out
+
+
+def test_validate_json_carries_the_hashes_ci_keys_on(project: Path, monkeypatch) -> None:
+    """A CI workflow keys its cassette cache on the dataset's content hash.
+
+    Keying on anything else - a branch name, a commit - restores a store
+    recorded against a different dataset, and every uncovered path then reads
+    as a model regression. So the hash has to be obtainable without running the
+    benchmark, and parseable without Rich in the way.
+    """
+    monkeypatch.chdir(project)
+    result = runner.invoke(app, ["validate", "--json"])
+    assert result.exit_code == exit_codes.OK
+
+    payload = json.loads(result.output)
+    assert payload["schema"] == "slmeval.validate/1"
+    assert payload["dataset_hash"] and payload["config_hash"]
+    assert payload["cases"] >= 1
+    assert payload["executions"] == (
+        (1 + len(payload["candidates"])) * payload["cases"] * payload["runs_per_case"]
+    )
+    assert payload["adapter"] in {"generic", "langgraph"}
+
+    # The same dataset hashes the same twice, or the cache key is a lottery.
+    again = json.loads(runner.invoke(app, ["validate", "--json"]).output)
+    assert again["dataset_hash"] == payload["dataset_hash"]
+
+    # And a changed dataset is a different key.
+    dataset = Path(payload["dataset"])
+    dataset.write_text(
+        dataset.read_text(encoding="utf-8")
+        + '{"case_id": "extra", "input": {"q": "x"}, "assert": {"state": {"a": 1}}}\n',
+        encoding="utf-8",
+    )
+    edited = json.loads(runner.invoke(app, ["validate", "--json"]).output)
+    assert edited["dataset_hash"] != payload["dataset_hash"]
 
 
 def test_validate_warns_about_a_misspelled_target_node(tmp_path: Path, monkeypatch) -> None:
@@ -229,7 +266,7 @@ def test_dataset_validate_reports_problems(tmp_path: Path) -> None:
 # -- planned commands ------------------------------------------------------
 
 
-@pytest.mark.parametrize("command", ["compare", "show", "gate", "cassette"])
+@pytest.mark.parametrize("command", ["compare", "cassette"])
 def test_planned_commands_explain_themselves(command: str) -> None:
     result = runner.invoke(app, [command])
     assert result.exit_code == exit_codes.USAGE
@@ -242,10 +279,28 @@ def test_planned_commands_tolerate_arguments() -> None:
     assert "not implemented yet" in text_of(result)
 
 
-@pytest.mark.parametrize("command", ["record", "run", "report"])
+@pytest.mark.parametrize("command", ["record", "run", "report", "gate"])
 def test_week_two_commands_are_real_now(command: str) -> None:
     """They need a project, so they fail on a missing config - not on being stubs."""
     result = runner.invoke(app, [command, "--config", "nope.toml"])
+    assert result.exit_code == exit_codes.USAGE
+    assert "config file not found" in text_of(result)
+    assert "not implemented yet" not in text_of(result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["show", "run"],
+        ["show", "exec", "x"],
+        ["show", "case", "x"],
+        ["show", "uncovered"],
+        ["baseline", "save"],
+        ["baseline", "show"],
+    ],
+)
+def test_week_three_subcommands_are_real_now(command: list[str]) -> None:
+    result = runner.invoke(app, [*command, "--config", "nope.toml"])
     assert result.exit_code == exit_codes.USAGE
     assert "config file not found" in text_of(result)
     assert "not implemented yet" not in text_of(result)

@@ -1,0 +1,44 @@
+  <run-id>.baseline.status_other.r0
+  baseline · status_other · repeat 0 · passed · ok · 3 steps · <duration>
+
+  trajectory
+    intent_router -> order_lookup -> compose_reply
+
+model calls
+#    node             schema    mode     repairs    json      ms
+0    intent_router    valid     tools          -    direct     0
+1    compose_reply    valid     tools          -    direct     0
+
+tool calls
+#    tool                                    outcome     tier     fault    node
+0    fetch_order({"order_id":"ORD-7310"})    replayed    exact    -        order_lookup
+
+metrics
+tier    metric                     value    detail
+   1    arg_checks                     1
+   1    arg_type_valid                 1
+   1    assertions_passed              1
+   1    cassette_degraded_rate         0
+   1    extra_args_hallucinated        0
+   1    json_extraction_stage          -    direct
+   1    repair_attempts                0
+   1    required_args_present          1
+   1    schema_calls                   2
+   1    schema_failure_rate            0
+   1    schema_repaired_rate           0
+   1    schema_valid_rate              1
+   1    structured_mode_used           -    tools
+   1    tool_calls                     1
+   1    tool_name_valid                1
+   2    steps                          3
+   2    tool_overlap                   -    extra: fetch_order
+   2    tool_precision                 0
+   2    tool_redundancy                0
+
+  final answer
+    "Your order ORD-7310 is with DHL."
+
+  final state
+    {"final_answer":"Your order ORD-7310 is with
+DHL.","intent":"order_status","order":{"carrier":"DHL","order_id":"ORD-7310","status":"shipped"},"order_id":"O
+RD-7310"}

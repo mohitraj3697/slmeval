@@ -1,0 +1,17 @@
+  offline  <run-id> · completed · replay · seed 42 · 2 runs/case
+  baseline=fake/scripted-baseline (baseline) · sloppy-router=fake/sloppy-router
+  dataset e0367c46c523ff0e · config 9dc0d675d5b9eb05
+
+executions
+exec                               outcome          steps    error
+sloppy-router.status_shipped.r0    cassette_miss        2    CassetteMiss
+sloppy-router.status_shipped.r1    cassette_miss        2    CassetteMiss
+sloppy-router.status_other.r0      uncovered            2    CassetteMiss
+sloppy-router.status_other.r1      uncovered            2    CassetteMiss
+baseline.status_other.r0           passed               3    -
+baseline.status_other.r1           passed               3    -
+baseline.status_shipped.r0         passed               3    -
+baseline.status_shipped.r1         passed               3    -
+
+  -> slmeval show exec <id>   one execution's timeline
+  -> slmeval show case <id> --candidate <id>   side by side against the baseline

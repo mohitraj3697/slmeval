@@ -13,7 +13,9 @@ So this runs outside the suite, against the artifact:
 2. `slmeval init` + `validate` + `doctor` in an empty directory - the first
    three minutes of a new user, which must work with no API key and no GPU;
 3. a scripted benchmark of our own, run end to end with `record`, `run` and
-   `report`, which must exit 0 and print a scorecard.
+   `report`, which must exit 0 and print a scorecard;
+4. the drill-down (`show run`, `show case`) and the gate, including that a
+   floor nothing can clear exits exactly 1 - the number CI branches on.
 
 Nothing here touches the network or a model server. `doctor` is allowed to exit
 3 (environment) because a machine with no Ollama is the normal case in CI; every
@@ -27,14 +29,22 @@ other command must exit 0.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+COLD_START_BUDGET_S = 300.0
+"""The README's promise: `pip install` to a scorecard in under five minutes,
+with no API key. Measured, because it is the whole funnel - and because a
+dependency resolution that quietly grew to four minutes would not show up in
+any other check here."""
 
 AGENT = '''\
 from pydantic import BaseModel
@@ -118,7 +128,15 @@ def run(
     cwd: Path,
     allow: tuple[int, ...] = (0,),
     env: dict[str, str] | None = None,
+    stdout_only: bool = False,
 ) -> str:
+    """Run a command and return what it printed.
+
+    ``stdout_only`` for the commands whose output is *data* - ``--json`` and
+    ``--format junit`` are promises about a pipe, and a single warning on
+    stderr folded into the same string would make this script's own parsing
+    lie about whether the promise held.
+    """
     printable = " ".join(Path(c).name if os.sep in c else c for c in command)
     print(f"  $ {printable}", flush=True)
     done = subprocess.run(
@@ -130,12 +148,12 @@ def run(
         errors="replace",
         env={**os.environ, **(env or {})},
     )
-    output = (done.stdout or "") + (done.stderr or "")
+    both = (done.stdout or "") + (done.stderr or "")
     if done.returncode not in allow:
         raise Failed(
-            f"{printable} exited {done.returncode}, expected one of {allow}\n{output}"
+            f"{printable} exited {done.returncode}, expected one of {allow}\n{both}"
         )
-    return output
+    return (done.stdout or "") if stdout_only else both
 
 
 def venv_bin(root: Path) -> Path:
@@ -193,6 +211,15 @@ def check_first_run(slmeval: Path, root: Path) -> None:
         if not (root / name).exists():
             raise Failed(f"init did not write {name}")
     run([str(slmeval), "validate"], cwd=root)
+
+    # The machine-readable form, which is what a CI workflow keys its cassette
+    # cache on. Rich must stay out of it or no parser can read it.
+    payload = json.loads(
+        run([str(slmeval), "validate", "--json"], cwd=root, stdout_only=True)
+    )
+    for key in ("dataset_hash", "config_hash", "cases"):
+        if not payload.get(key):
+            raise Failed(f"validate --json carried no {key}: {payload}")
     # 3 is "no model server here", which is the normal state of a CI runner and
     # not a broken install.
     doctor = run([str(slmeval), "doctor"], cwd=root, allow=(0, 3))
@@ -219,7 +246,54 @@ def check_scorecard(slmeval: Path, root: Path) -> None:
     if "Candidate" not in again:
         raise Failed(f"report could not re-render the stored run:\n{again}")
 
+    # The exports CI consumes: JUnit for an existing dashboard, Markdown for a
+    # pull-request comment. Both are shipped promises, so both are checked
+    # against the artifact rather than only against the working tree.
+    run([str(slmeval), "report", "--format", "junit", "--out", "junit.xml"], cwd=root)
+    junit = (root / "junit.xml").read_text(encoding="utf-8")
+    if "<testsuite" not in junit or "status_shipped" not in junit:
+        raise Failed(f"the JUnit export has no per-case rows:\n{junit}")
+
+    markdown = run([str(slmeval), "report", "--format", "md"], cwd=root, stdout_only=True)
+    if "| Candidate" not in markdown:
+        raise Failed(f"the Markdown export has no table:\n{markdown}")
+
     run([str(slmeval), "--version"], cwd=root)
+
+
+def check_drilldown(slmeval: Path, root: Path) -> None:
+    """`show` has to work off the stored rows alone, in the installed wheel."""
+    print("drill-down: show run, show case")
+    listing = run([str(slmeval), "show", "run", "--ascii"], cwd=root)
+    if "executions" not in listing:
+        raise Failed(f"show run printed no execution table:\n{listing}")
+
+    diff = run([str(slmeval), "show", "case", "status_shipped", "--ascii"], cwd=root)
+    if "trajectory" not in diff:
+        raise Failed(f"show case printed no trajectory diff:\n{diff}")
+
+
+def check_gate(slmeval: Path, root: Path) -> None:
+    """The exit-code contract, against the installed artifact.
+
+    A floor of 0 has to pass and a floor of 1 has to exit exactly 1 - not 2 and
+    not a traceback. CI branches on these numbers, so a wheel that got them
+    wrong would be worse than a wheel that did not install.
+    """
+    print("gate: exit codes")
+    passing = run([str(slmeval), "gate", "--min-pass-k", "0", "--ascii"], cwd=root)
+    if "GATE PASSED" not in passing:
+        raise Failed(f"a floor of zero did not pass:\n{passing}")
+
+    failing = run(
+        [str(slmeval), "gate", "--min-pass-k", "1", "--ascii"], cwd=root, allow=(1,)
+    )
+    if "GATE FAILED" not in failing:
+        raise Failed(f"a floor of one did not fail the gate:\n{failing}")
+
+    run([str(slmeval), "baseline", "save"], cwd=root)
+    if not (root / "slmeval.baseline.json").exists():
+        raise Failed("baseline save wrote no slmeval.baseline.json")
 
 
 def main() -> int:
@@ -232,6 +306,10 @@ def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="slmeval-smoke-"))
     print(f"workspace: {workspace}")
 
+    # The README promises a scorecard within five minutes of `pip install`.
+    # That promise is the funnel, so it is measured here rather than assumed -
+    # from the empty venv to the printed table, on whichever runner this is.
+    started = time.monotonic()
     try:
         slmeval = fresh_venv(workspace / "venv", wheel)
         first = workspace / "first-run"
@@ -241,6 +319,8 @@ def main() -> int:
         benchmark = workspace / "benchmark"
         benchmark.mkdir()
         check_scorecard(slmeval, benchmark)
+        check_drilldown(slmeval, benchmark)
+        check_gate(slmeval, benchmark)
 
         python = venv_bin(workspace / "venv") / ("python.exe" if os.name == "nt" else "python")
         run([str(python), "-m", "slmeval", "--version"], cwd=benchmark)
@@ -253,7 +333,16 @@ def main() -> int:
         else:
             shutil.rmtree(workspace, ignore_errors=True)
 
+    elapsed = time.monotonic() - started
     print(f"\nok - {wheel.name} installs and produces a scorecard")
+    print(f"cold start: {elapsed:.0f}s from an empty virtualenv to a gated scorecard")
+    if elapsed > COLD_START_BUDGET_S:
+        print(
+            f"FAILED: that is over the {COLD_START_BUDGET_S:.0f}s the README promises. "
+            "The first five minutes decide whether this gets a user.",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

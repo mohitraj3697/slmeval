@@ -144,11 +144,45 @@ class ToolCallTrace:
 
 @dataclass(slots=True)
 class NodeVisit:
-    """An entry into a node, in order. This is the trajectory."""
+    """An entry into a node, in order. This is the trajectory.
+
+    The fields past ``seq`` are filled in by a framework adapter, which sees
+    the node boundary from the outside and so knows things a `with node(...)`
+    block cannot: how long the node took, which state keys went in and came
+    out, and whether it raised. A hand-marked node leaves them unset, and
+    everything downstream treats them as optional - the gradient matters,
+    because a user who marks their nodes by hand must still get a working
+    benchmark.
+    """
 
     path: tuple[str, ...]
     seq: int
 
+    latency_ms: float | None = None
+    """Wall time for the node, including the model calls inside it. ``None``
+    when nobody measured it, never 0.0 - a node reported as instantaneous is a
+    different claim from a node nobody timed."""
+
+    error: str | None = None
+    error_type: str | None = None
+    """Truncated: the type is what aggregates, and a 4 kB traceback in a trace
+    store that holds tens of thousands of these is a liability."""
+
+    input_keys: tuple[str, ...] = ()
+    output_keys: tuple[str, ...] = ()
+    """The state keys in and out, sorted. Not the values: a benchmark's trace
+    store should not become a copy of a customer's state, and the *shape* is
+    what says a node wrote nothing when it should have."""
+
     @property
     def name(self) -> str:
         return self.path[-1] if self.path else ""
+
+    @property
+    def failed(self) -> bool:
+        return self.error_type is not None
+
+    @property
+    def written_keys(self) -> tuple[str, ...]:
+        """Keys the node added. Empty for a node that only read."""
+        return tuple(k for k in self.output_keys if k not in set(self.input_keys))

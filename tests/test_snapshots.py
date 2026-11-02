@@ -23,8 +23,18 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
+from slmeval.cli.commands.gate_cmd import render_gate, to_markdown
 from slmeval.cli.render import render_miss
+from slmeval.gate import Thresholds, evaluate
 from slmeval.report.attribution import render_attribution
+from slmeval.report.drilldown import (
+    build_diff,
+    gaps,
+    render_diff,
+    render_execution,
+    render_gaps,
+    render_run,
+)
 from slmeval.report.model import build_scorecard
 from slmeval.report.scorecard import (
     render_rollups,
@@ -34,12 +44,16 @@ from slmeval.report.scorecard import (
     warnings_block,
 )
 from slmeval.sandbox.diagnosis import diagnose
+from slmeval.storage.models import Outcome
 from tests.conftest import assert_snapshot
 from tests.offline import (
     behaves,
+    build_and_run,
     candidate,
+    clone_project,
     forget_the_agent_module,  # noqa: F401 - autouse fixture
     offline_project,
+    open_built,
     replies,
     routes,
 )
@@ -203,3 +217,118 @@ def test_the_hallucinated_tool_block(recorded) -> None:  # type: ignore[no-untyp
         node="order_lookup",
     )
     assert_snapshot("miss_unknown_tool", render(render_miss(finding, ascii_mode=True)))
+
+
+# --------------------------------------------------------------------------- #
+# The drill-down
+# --------------------------------------------------------------------------- #
+
+
+_DRILLDOWN: dict[str, Path] = {}
+
+
+@pytest.fixture
+def drilldown(tmp_path: Path, tmp_path_factory: pytest.TempPathFactory):  # type: ignore[no-untyped-def]
+    """A stored run plus the store it came from, for the per-execution views.
+
+    Its own fixture rather than a reuse of ``card``: the drill-down needs the
+    open project - executions are reconstructed one at a time and the cassette
+    store is what the diagnosis block is rebuilt from - and the scorecard
+    fixture has closed both by the time it yields.
+
+    Run once for the module and cloned per test, because four snapshots of one
+    run do not need four runs.
+    """
+    if "drilldown" not in _DRILLDOWN:
+        _DRILLDOWN["drilldown"] = build_and_run(
+            tmp_path_factory.mktemp("snapshot-drilldown"),
+            candidates=candidate(
+                "sloppy-router", routes("order_status", "9921"), replies()
+            ),
+            repeats=2,
+        )
+    root = clone_project(_DRILLDOWN["drilldown"], tmp_path / "project")
+    with open_built(root) as runs:
+        latest = runs.store.latest_run()
+        assert latest is not None
+        yield runs, latest.run_id
+
+
+def test_the_run_listing(drilldown) -> None:  # type: ignore[no-untyped-def]
+    """Worst first, one line per cell. The index a user drills down from."""
+    runs, run_id = drilldown
+    rendered = render(
+        render_run(
+            runs.store.require_run(run_id),
+            runs.store.candidates(run_id),
+            runs.store.executions(run_id),
+            ascii_mode=True,
+        )
+    )
+    assert_snapshot("show_run", without_the_clock(rendered))
+
+
+def test_the_side_by_side_diff(drilldown) -> None:  # type: ignore[no-untyped-def]
+    """The view the plan calls the failure drill-down: baseline left, candidate
+    right, divergence marked, diagnosis block inline."""
+    runs, run_id = drilldown
+    case_id = "status_shipped"
+    executions = runs.store.executions(run_id, case_id=case_id)
+    mine = next(e for e in executions if e.candidate_id == "sloppy-router")
+    reference = next(e for e in executions if e.candidate_id == "baseline")
+    diff = build_diff(
+        case_id=case_id,
+        candidate=runs.store.reconstruct(mine.exec_id),
+        baseline=runs.store.reconstruct(reference.exec_id),
+        candidate_id="sloppy-router",
+        cassettes=runs.project.cassettes,
+    )
+    assert_snapshot("show_diff", without_the_clock(render(render_diff(diff, ascii_mode=True))))
+
+
+def test_one_execution_timeline(drilldown) -> None:  # type: ignore[no-untyped-def]
+    runs, run_id = drilldown
+    reference = next(
+        e for e in runs.store.executions(run_id) if e.candidate_id == "baseline"
+    )
+    rendered = render(
+        render_execution(runs.store.reconstruct(reference.exec_id), ascii_mode=True)
+    )
+    assert_snapshot("show_exec", without_the_clock(rendered))
+
+
+def test_the_uncovered_listing(drilldown) -> None:  # type: ignore[no-untyped-def]
+    """What `record --fill-gaps` is pointed at, with the hallucinations kept
+    out of it - see the command's own docstring for why that matters."""
+    runs, run_id = drilldown
+    details = [
+        (e.candidate_id, runs.store.reconstruct(e.exec_id))
+        for e in runs.store.executions(run_id)
+        if e.outcome_class in {Outcome.CASSETTE_MISS, Outcome.UNCOVERED}
+    ]
+    rendered = render(render_gaps(gaps(details), ascii_mode=True, run_id=run_id))
+    assert_snapshot("show_uncovered", without_the_clock(rendered))
+
+
+# --------------------------------------------------------------------------- #
+# The gate
+# --------------------------------------------------------------------------- #
+
+
+def test_the_gate_verdict(card) -> None:  # type: ignore[no-untyped-def]
+    """The block a CI log shows, and the one people will paste into an issue
+    when they disagree with a verdict. Verdict first, then why."""
+    report = evaluate(
+        card,
+        Thresholds(min_pass_k=0.9, max_cost_ratio=0.5, max_p95_ratio=2.0),
+    )
+    assert_snapshot(
+        "gate_failed", without_the_clock(render(render_gate(report, ascii_mode=True)))
+    )
+
+
+def test_the_gate_markdown(card) -> None:  # type: ignore[no-untyped-def]
+    """The pull-request comment. Pinned because this is where most people meet
+    the tool, and because a lost caveat here is a misread merge."""
+    report = evaluate(card, Thresholds(min_pass_k=0.9))
+    assert_snapshot("gate_markdown", without_the_clock(to_markdown(report)))

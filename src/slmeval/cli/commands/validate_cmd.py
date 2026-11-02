@@ -9,8 +9,9 @@ not exist.
 from __future__ import annotations
 
 import inspect
+import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.table import Table
@@ -127,6 +128,45 @@ def cross_check(loaded: LoadedConfig, dataset: Dataset) -> list[Problem]:
     return warnings
 
 
+def as_payload(
+    loaded: LoadedConfig, dataset: Dataset, warnings: list[Problem]
+) -> dict[str, Any]:
+    """The same summary as a machine-readable dict.
+
+    Exists for one job, and it is worth naming: a CI workflow has to key its
+    cassette cache on something, and the only correct key is the *content* hash
+    of the dataset the cassettes were recorded for. A workflow that keyed on a
+    branch name, or on nothing, would restore a stale cache and then report
+    every uncovered path as a model regression.
+
+    The config hash rides along because it is what `gate` refuses to compare
+    across, so a workflow can print both and a reviewer can see at a glance
+    whether two runs were even the same experiment.
+    """
+    cfg = loaded.config
+    return {
+        "schema": "slmeval.validate/1",
+        "ok": True,
+        "warnings": [
+            {"path": w.path, "message": w.message, "line": w.line} for w in warnings
+        ],
+        "benchmark": cfg.benchmark.name,
+        "config": str(loaded.path),
+        "config_hash": cfg.config_hash(),
+        "dataset": str(dataset.path),
+        "dataset_hash": dataset.content_hash,
+        "cases": len(dataset),
+        "tags": list(dataset.tags),
+        "target": cfg.target.entrypoint,
+        "adapter": cfg.target.adapter,
+        "baseline": cfg.baseline.id,
+        "candidates": [c.id for c in cfg.candidates],
+        "runs_per_case": cfg.benchmark.runs_per_case,
+        "tool_mode": cfg.benchmark.tool_mode,
+        "executions": len(cfg.all_models) * len(dataset) * cfg.benchmark.runs_per_case,
+    }
+
+
 def _summary(loaded: LoadedConfig, dataset: Dataset) -> Table:
     cfg = loaded.config
     table = Table.grid(padding=(0, 2))
@@ -173,6 +213,14 @@ def register(app: typer.Typer) -> None:
                 help="Import the target entrypoint and treat warnings as errors (for CI).",
             ),
         ] = False,
+        as_json: Annotated[
+            bool,
+            typer.Option(
+                "--json",
+                help="Emit the summary - including the config and dataset hashes - "
+                "as JSON. For CI cache keys and provenance checks.",
+            ),
+        ] = False,
     ) -> None:
         """Validate eval.toml, the dataset, and the links between them."""
         out = console()
@@ -181,6 +229,15 @@ def register(app: typer.Typer) -> None:
         loaded = load_config(find_config(config))
         dataset = load_dataset(require_dataset(loaded))
         warnings = cross_check(loaded, dataset)
+
+        if as_json:
+            # print, not rich-print: this is data on its way into a pipe or a
+            # `$GITHUB_OUTPUT`, and Rich would wrap and style it into something
+            # no parser can read.
+            print(json.dumps(as_payload(loaded, dataset, warnings), indent=2))
+            if warnings and strict:
+                raise typer.Exit(exit_codes.USAGE)
+            return
 
         out.print()
         out.print(_summary(loaded, dataset))

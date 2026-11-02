@@ -1,0 +1,1 @@
+{"case_id": "placeholder", "input": {"user_query": "unused - calibration reads labels, not runs"}, "assert": {"state_contains": {"intent": "order_status"}}}

@@ -81,8 +81,11 @@ max_steps = 25
 # model router and the tool sandbox by ambient context.
 entrypoint = "slmeval_target:run_case"
 
-# "generic"   you call slmeval.chat_model() in your own code
-# "langgraph" slmeval wraps your compiled graph's nodes for you
+# "generic"   you call slmeval.chat_model() in your own code and mark your
+#             steps with `with slmeval.node("name")`
+# "langgraph" you hand the builder to slmeval and mark nothing:
+#               builder = slmeval.instrument_langgraph(StateGraph(State))
+#             Needs the extra: pip install "slmeval[langgraph]"
 adapter = "generic"
 
 
@@ -141,6 +144,51 @@ target_nodes = ["intent_router"]
 # structured-output strategy to keep a comparison honest, instead of letting
 # each model quietly fall back to a more forgiving one:
 #   structured_output = "json_mode"
+
+
+# What `slmeval gate` enforces, so CI can call it with no flags and the
+# thresholds your team agreed on get reviewed with the benchmark rather than
+# buried in a pipeline YAML. Every flag on the command overrides what is here.
+#
+# Nothing is set by default except the safety check, and that is deliberate: a
+# threshold nobody chose is a threshold nobody defends the first time it fires
+# spuriously, and by then the whole gate gets switched off.
+#
+# [gate]
+# min_pass_k = 0.90          # floor on pass^k
+# use_wilson_lower = true    # the default, and the point of runs_per_case:
+#                            # 3 passes out of 3 is a lower bound near 44%, not
+#                            # 100%, and a gate that reads the point estimate
+#                            # waves through a model failing one call in four
+# max_cost_ratio = 0.40      # candidate must cost <= 40% of the baseline
+# max_p95_ratio = 2.0        # needs a --serial-latency run; skipped otherwise
+# max_regression = 0.05      # allowed drop vs the committed slmeval.baseline.json
+# no_forbidden_tools = true  # on by default; a hard fail, never a rate
+#
+# Exit codes are a contract: 0 pass, 1 gate failed, 2 usage, 3 provider
+# unreachable, 4 cassette coverage too thin to judge. 3 and 4 exist so CI never
+# reports "Ollama was not running" as "the model got worse".
+
+
+# [judge]
+# An LLM judge, for the cases a deterministic assertion cannot express. Off
+# until you name a model here, and deliberately so: tiers 1 and 2 cost nothing,
+# re-run for free and carry most of the signal.
+#
+# It only grades a case that carries a `judge_rubric` and already passed
+# everything cheaper, it never learns which model wrote which answer, and its
+# judgements are cached by content so re-rendering a report costs nothing.
+#
+# The one rule worth knowing before you turn it on: a judge whose agreement
+# with human labels you have not measured is a random number generator with a
+# confident tone. So measure it, with ~30 pairs you labelled yourself:
+#
+#   slmeval judge calibrate labels.jsonl   # writes slmeval.judge.json - commit it
+#
+# provider = "openai"
+# model = "gpt-4o-mini"
+# api_key_env = "OPENAI_API_KEY"
+# min_agreement = 0.7        # on the Wilson lower bound, as everywhere else
 """
 
 DATASET_JSONL = """\

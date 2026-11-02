@@ -1,0 +1,23 @@
+### slmeval gate · **NOT ENOUGH COVERAGE TO JUDGE** - not a regression (exit 4)
+
+`<run-id>` · 2 cases x 2 runs · replay · seed 42 · dataset `e0367c46c523ff0e`
+
+> Not enough recorded ground truth to judge this run. Run `slmeval record --fill-gaps`; this is **not a model regression**.
+
+| | Candidate | Check | Detail |
+|---|---|---|---|
+| ✅ | `fenced-json` | provider | every one of 4 execution(s) reached the model server |
+| ❌ | `fenced-json` | coverage | 2/4 execution(s) took paths the cassettes do not cover (status_other) - run `slmeval record --fill-gaps` |
+| ✅ | `fenced-json` | forbidden_tools | no forbidden tool was called |
+| ❌ | `fenced-json` | pass_k | Wilson lower bound 20.7% against a floor of 90% (point estimate 100.0% over 1 case(s), 2 execution(s)) |
+| ✅ | `sloppy-router` | provider | every one of 4 execution(s) reached the model server |
+| ❌ | `sloppy-router` | coverage | 2/4 execution(s) took paths the cassettes do not cover (status_other) - run `slmeval record --fill-gaps` |
+| ✅ | `sloppy-router` | forbidden_tools | no forbidden tool was called |
+| ❌ | `sloppy-router` | pass_k | Wilson lower bound 0.0% against a floor of 90% (point estimate 0.0% over 1 case(s), 2 execution(s)) |
+| ✅ | `prose-only` | provider | every one of 4 execution(s) reached the model server |
+| ✅ | `prose-only` | coverage | all 4 execution(s) stayed inside recorded ground truth |
+| ✅ | `prose-only` | forbidden_tools | no forbidden tool was called |
+| ❌ | `prose-only` | pass_k | Wilson lower bound 0.0% against a floor of 90% (point estimate 0.0% over 2 case(s), 4 execution(s)) |
+| ✅ | `baseline` | forbidden_tools | no forbidden tool was called |
+
+Gated on the Wilson lower bound of `pass^2`. A rate without its interval is a number pretending to be evidence.

@@ -322,6 +322,22 @@ class RunStore:
             self._local.conn = conn
         return conn
 
+    def connection(self) -> sqlite3.Connection:
+        """This thread's connection, for a cache that owns its own table.
+
+        Public so that :class:`slmeval.eval.tier3.JudgementCache` can read and
+        write ``judgements`` without opening a second file - and, more to the
+        point, without opening a connection of its own per judgement. That was
+        the blueprint's most expensive bug: ``with sqlite3.connect(...)``
+        commits but does not close, so one connection leaked per tool call, and
+        on Windows that surfaces as handle exhaustion and lock errors rather
+        than as anything resembling its cause.
+
+        The connection is thread-local and owned by this store. Do not close
+        it; do not keep it past :meth:`close`.
+        """
+        return self._conn()
+
     def close(self) -> None:
         """Close every connection this store opened, from any thread.
 

@@ -1,0 +1,107 @@
+# The GitHub Action, proved on the bundled example.
+#
+# This is the "demo repo" check: it exercises `examples/github-action` end to
+# end against `examples/support_agent`, on a stock runner, with **no GPU, no
+# API key and no secret of any kind**. The baseline and both candidates are the
+# scripted `fake` provider and every tool is a local Python function, so the
+# whole thing - record, replay, gate - runs offline.
+#
+# Two jobs, because an action that can only go green is not a gate:
+#
+# `green` gates on a floor the example clears and expects exit 0.
+# `red` gates on a floor nothing can clear and expects exit 1 - a regression,
+# not a crash, not a usage error, and not exit 3. That distinction is the whole
+# contract CI branches on, and it is the one thing worth asserting on every
+# push.
+#
+# The job summary and the pull-request comment this produces are also the
+# artefacts to screenshot for the README: this workflow is where the output in
+# the docs comes from.
+
+name: gate-demo
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: gate-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  green:
+    name: the action passes a healthy run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: slmeval
+        uses: ./examples/github-action
+        with:
+          working-directory: examples/support_agent
+          # The checkout itself, not a release: this workflow is what proves
+          # the action works against the code in the pull request.
+          version: .
+          # Safe here, and only here: every tool in the example is a local
+          # function and the provider is `fake`, so recording touches nothing
+          # outside the runner.
+          record: missing
+          # The candidate whose story is "passes, but only with help": it
+          # answers every case correctly and needs a lower rung on every
+          # structured call to do it.
+          run-args: --candidate fenced-json
+          # A floor the example clears, on the estimator that matters, and not
+          # a number tuned to pass: 4/4 cases over 3 runs each has a Wilson
+          # lower bound of 51%, so this is as high as a floor can honestly go
+          # at n=4. Asking for 0.9 here would be asking for a guarantee the
+          # sample size cannot give - which is the whole lesson of the tool.
+          gate-args: --min-pass-k 0.5 --use-wilson-lower
+          artifact-name: slmeval-demo-green
+
+      - name: The outputs say what happened
+        run: |
+          test '${{ steps.slmeval.outputs.verdict }}' = passed
+          test '${{ steps.slmeval.outputs.exit-code }}' = 0
+          test -n '${{ steps.slmeval.outputs.run-id }}'
+          test -n '${{ steps.slmeval.outputs.dataset-hash }}'
+          echo "run ${{ steps.slmeval.outputs.run-id }} passed"
+
+  red:
+    name: the action fails a regression with exit 1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: slmeval
+        # continue-on-error, not a removed threshold: the action *must* fail
+        # the step here. A demo that only ever went green would prove the
+        # pretty half of a gate and none of the useful half.
+        continue-on-error: true
+        uses: ./examples/github-action
+        with:
+          working-directory: examples/support_agent
+          version: .
+          record: missing
+          # Nothing can clear a floor of 100% on a Wilson lower bound, so this
+          # is the regression path.
+          gate-args: --min-pass-k 1.0 --use-wilson-lower
+          comment: "false"
+          artifact-name: slmeval-demo-red
+
+      - name: Exit 1, and labelled as a regression
+        run: |
+          if [ '${{ steps.slmeval.outputs.exit-code }}' != '1' ]; then
+            echo "::error::the gate exited '${{ steps.slmeval.outputs.exit-code }}', not 1."
+            echo "1 means a threshold was missed. 2 is a usage error, 3 is an unreachable"
+            echo "provider and 4 is thin coverage - if an unclearable floor produces any of"
+            echo "those, CI cannot tell a regression from a broken runner."
+            exit 1
+          fi
+          test '${{ steps.slmeval.outputs.verdict }}' = failed
+          echo "a missed threshold exits 1, as the contract says"

@@ -1,0 +1,42 @@
+# A config whose only job is to carry a [judge] section, so
+# `slmeval judge calibrate` can run here with no key and no network.
+#
+#     cd examples/judge
+#     slmeval judge calibrate labels.example.jsonl --ascii
+#
+# The scripted judge below answers "pass" to everything. That is not laziness -
+# it is the judge kappa exists to catch. Run it and watch the raw agreement
+# look respectable while kappa sits near zero, which is the whole reason this
+# tool never prints one of those numbers without the other.
+
+[benchmark]
+name = "judge-calibration"
+dataset = "./cases.jsonl"
+runs_per_case = 3
+tool_mode = "replay"
+
+[target]
+# Never executed by `judge calibrate` - calibration reads labels, not runs - but
+# the config schema requires a target, and a stub that cannot be mistaken for a
+# real agent is better than one that can.
+entrypoint = "stub_target:run_case"
+
+[baseline]
+provider = "fake"
+model = "scripted-baseline"
+
+[judge]
+provider = "fake"
+model = "scripted-judge"
+min_agreement = 0.7
+extra_body.script = [
+    { text = '{"verdict": "pass", "score": 0.9, "reasoning": "the answer names the order, the carrier and a delivery date", "cited_span": "ORD-9921"}' },
+]
+
+# Swap in the real thing once you have labelled your own pairs:
+#
+# [judge]
+# provider = "openai"
+# model = "gpt-4o-mini"
+# api_key_env = "OPENAI_API_KEY"
+# min_agreement = 0.7

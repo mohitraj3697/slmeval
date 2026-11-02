@@ -14,14 +14,22 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 from rich.console import Console
 
 from slmeval.eval.pipeline import case_rollups
 from slmeval.report.attribution import node_cells, node_order, recommendation
-from slmeval.report.export import SCHEMA_VERSION, to_csv, to_json, to_markdown
+from slmeval.report.export import (
+    SCHEMA_VERSION,
+    to_csv,
+    to_json,
+    to_junit,
+    to_markdown,
+)
 from slmeval.report.model import LATENCY_DISCLAIMER, build_scorecard
 from slmeval.report.scorecard import (
     render_rollups,
@@ -365,6 +373,59 @@ def test_the_csv_export_is_long_and_narrow(card) -> None:  # type: ignore[no-unt
     # Every row carries its n, because a rate without one does not belong in a
     # spreadsheet.
     assert all(line.split(",")[7] != "" for line in lines[1:])
+
+
+def test_the_junit_export_has_one_test_case_per_candidate_per_case(card) -> None:  # type: ignore[no-untyped-def]
+    """The format that puts this in a dashboard the team already reads."""
+    tree = ElementTree.fromstring(to_junit(card))
+    suites = tree.findall("testsuite")
+    name = card.run.name
+    assert {s.get("name") for s in suites} == {
+        f"slmeval.{name}.baseline",
+        f"slmeval.{name}.weak",
+    }
+
+    by_name = {s.get("name"): s for s in suites}
+    baseline = by_name[f"slmeval.{name}.baseline"]
+    assert len(baseline.findall("testcase")) == len(card.cases)
+    assert baseline.findall("failure") == []
+    assert baseline.get("failures") == "0"
+
+    # The weak candidate fails every case, and the message carries c/n and the
+    # interval: "2/3" and "2/3 [21%, 94%]" lead to different decisions.
+    weak = by_name[f"slmeval.{name}.weak"]
+    failures = weak.findall("testcase/failure")
+    assert len(failures) == len(card.cases)
+    assert all("0/2 repeat(s) passed" in (f.get("message") or "") for f in failures)
+    assert all("[" in (f.get("message") or "") for f in failures)
+
+    # Provenance on the suite, so a dashboard row can be traced back to a run.
+    properties = {
+        p.get("name"): p.get("value") for p in baseline.findall("properties/property")
+    }
+    assert properties["run_id"] == card.run.run_id
+    assert properties["dataset_hash"] == card.run.dataset_hash
+    assert properties["runs_per_case"] == str(card.repeats)
+
+
+def test_the_junit_export_skips_what_it_could_not_judge(card) -> None:  # type: ignore[no-untyped-def]
+    """Our own recording gap must not reach a dashboard as a model failure."""
+    row = card.rows[0]
+    missing = dict(row.rollups)
+    missing.pop(card.cases[0])
+    stripped = replace(card, rows=(replace(row, rollups=missing), *card.rows[1:]))
+
+    suite = ElementTree.fromstring(to_junit(stripped)).findall("testsuite")[0]
+    skipped = suite.findall("testcase/skipped")
+    assert len(skipped) == 1
+    assert "record --fill-gaps" in (skipped[0].get("message") or "")
+    assert suite.get("skipped") == "1"
+
+
+def test_the_junit_export_reports_no_latency(card) -> None:  # type: ignore[no-untyped-def]
+    """Per-case wall time only means something on a --serial-latency run, and a
+    dashboard plotting concurrency noise as a trend is worse than no trend."""
+    assert "time=" not in to_junit(card)
 
 
 def test_an_unknown_export_format_is_refused(card) -> None:  # type: ignore[no-untyped-def]

@@ -17,8 +17,6 @@ from slmeval.cli.render import console, symbols
 
 PLANNED: list[tuple[str, str, str]] = [
     ("compare", "Put two runs side by side.", "step 13, week 3"),
-    ("show", "Drill into a run, execution or case.", "step 13, week 3"),
-    ("gate", "Fail the build when a candidate regresses.", "step 14, week 3"),
     ("cassette", "Inspect, verify and prune recorded tool responses.", "step 8, week 3"),
 ]
 
@@ -37,7 +35,7 @@ def _make(name: str, summary: str, when: str) -> Callable[..., None]:
         out.print(
             Text(
                 "  Available now: init, doctor, validate, dataset validate, "
-                "record, run, report, cache stats",
+                "record, run, report, show, gate, baseline save, cache stats",
                 style="dim",
             )
         )

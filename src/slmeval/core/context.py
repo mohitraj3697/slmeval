@@ -326,6 +326,36 @@ def reset_warnings() -> None:
 
 
 @contextmanager
+def entering_node(name: str) -> Iterator[NodeVisit | None]:
+    """Enter a node and hand back its trajectory entry, if one was recorded.
+
+    The form a framework adapter needs: it sees the node boundary from the
+    outside, so it can fill in the latency, the exception and the state key
+    sets that a hand-written ``with node(...)`` block has no way to know.
+    ``None`` outside a benchmark run, where there is no trajectory to append
+    to and nothing to fill in.
+
+    Exit always goes through ``reset(token)``. Not ``set(old_value)`` - that is
+    not the contextvars API, and it corrupts attribution the first time nodes
+    nest, which is the first thing any real graph does.
+    """
+    cleaned = name.strip()
+    if not cleaned:
+        raise ValueError("node() needs a non-empty name - it becomes a scorecard row")
+    path = (*_node_path.get(), cleaned)
+    token = _node_path.set(path)
+    ctx = _context.get()
+    visit: NodeVisit | None = None
+    if ctx is not None:
+        visit = NodeVisit(path=path, seq=len(ctx.trajectory))
+        ctx.trajectory.append(visit)
+    try:
+        yield visit
+    finally:
+        _node_path.reset(token)
+
+
+@contextmanager
 def node(name: str) -> Iterator[tuple[str, ...]]:
     """Name the agent step inside this block.
 
@@ -339,18 +369,8 @@ def node(name: str) -> Iterator[tuple[str, ...]]:
 
     A no-op outside a benchmark run, so it is safe to leave in production code.
     """
-    cleaned = name.strip()
-    if not cleaned:
-        raise ValueError("node() needs a non-empty name - it becomes a scorecard row")
-    path = (*_node_path.get(), cleaned)
-    token = _node_path.set(path)
-    ctx = _context.get()
-    if ctx is not None:
-        ctx.trajectory.append(NodeVisit(path=path, seq=len(ctx.trajectory)))
-    try:
-        yield path
-    finally:
-        _node_path.reset(token)
+    with entering_node(name):
+        yield (*_node_path.get(),)
 
 
 def current_node() -> str | None:
@@ -372,6 +392,7 @@ __all__ = [
     "benchmark_running_now",
     "current_node",
     "current_node_path",
+    "entering_node",
     "get_context",
     "no_context",
     "node",

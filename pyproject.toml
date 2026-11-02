@@ -49,6 +49,10 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.6",
     "mypy>=1.11",
+    # Only to parse the shipped workflows and the composite action in the
+    # tests. A syntax error in `examples/github-action/action.yml` breaks every
+    # user's pipeline and nothing else in this project would notice.
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

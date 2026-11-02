@@ -25,12 +25,21 @@ real APIs:
 
 It is a no-op outside a benchmark too, so in production your tools do exactly
 what they always did.
+
+With LangGraph there is a third, which replaces the `node()` blocks entirely:
+
+    builder = slmeval.instrument_langgraph(StateGraph(State))
+    builder.add_node("intent_router", route)
+
+Every node then names itself in the scorecard, and the graph still runs
+unchanged outside a benchmark.
 """
 
 from __future__ import annotations
 
 __version__ = "0.1.0"
 
+from slmeval.adapters import instrument_langgraph, instrument_node
 from slmeval.core.context import RunContext, node
 from slmeval.core.router import ChatModel, chat_model
 from slmeval.providers.base import (
@@ -55,6 +64,8 @@ __all__ = [
     "ToolSpec",
     "__version__",
     "chat_model",
+    "instrument_langgraph",
+    "instrument_node",
     "node",
     "sandbox_tool",
 ]

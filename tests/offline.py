@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import shutil
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -299,6 +300,52 @@ def offline_project(root: Path, **options: Any) -> Iterator[Runs]:
     config = write_project(root, **options)
     with open_project(config) as project:
         yield Runs(project)
+
+
+def build_and_run(
+    root: Path, *, record: bool = True, tool_mode: str = "replay", **options: Any
+) -> Path:
+    """Leave a finished run on disk, then rewrite the project around it.
+
+    Rewritten afterwards so the agent module is importable again - which also
+    proves the point for the suites that use this: ``show``, ``report`` and
+    ``gate`` read the stored rows and never load the agent, so the project they
+    are pointed at is only there for its config and its store.
+    """
+    with offline_project(root, **options) as runs:
+        if record:
+            runs.record()
+        runs.run(tool_mode=tool_mode)
+    write_project(root, **options)
+    return root
+
+
+@contextlib.contextmanager
+def open_built(root: Path) -> Iterator[Runs]:
+    """Open a project that already holds a finished run, without touching it.
+
+    The counterpart to :func:`build_and_run`: the store, the cassettes and the
+    config are read as they are, so a test can inspect a run it did not have to
+    execute.
+    """
+    with open_project(root / "eval.toml") as project:
+        yield Runs(project)
+
+
+def clone_project(template: Path, destination: Path) -> Path:
+    """Copy a finished project so a test can mutate it without rebuilding it.
+
+    Running a matrix costs about a quarter of a second and copying the finished
+    store costs almost nothing, so a suite that needs one stored run per test
+    builds it once and clones it. The whole suite has to stay under thirty
+    seconds; past that people stop running it, and a test suite nobody runs
+    protects nothing.
+    """
+    shutil.copytree(template, destination, dirs_exist_ok=True)
+    # The clone carries its own copy of the agent module file, and a stale
+    # import would have this test benchmark the template's.
+    sys.modules.pop(MODULE, None)
+    return destination
 
 
 @pytest.fixture(autouse=True)

@@ -102,11 +102,13 @@ def test_a_module_that_raises_on_import_is_not_reported_as_missing(tmp_path: Pat
         sys.modules.pop("broken", None)
 
 
-def test_the_langgraph_adapter_says_what_to_do_instead(project: Path) -> None:
-    with pytest.raises(ConfigError) as caught:
-        load_target("my_agent:run_case", adapter="langgraph", root=project)
-    assert "not implemented yet" in str(caught.value)
-    assert "generic" in (caught.value.hint or "")
+def test_the_langgraph_adapter_loads_the_same_entrypoint(project: Path) -> None:
+    """Not a second code path. A LangGraph target is still one coroutine
+    returning the final state; what differs is how the user names their nodes
+    inside it, which the harness has no reason to know about."""
+    target = load_target("my_agent:run_case", adapter="langgraph", root=project)
+    assert target.entrypoint == "my_agent:run_case"
+    assert target.is_async
 
 
 def test_an_unknown_adapter_is_refused(project: Path) -> None:

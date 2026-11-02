@@ -20,10 +20,9 @@ from typing import Annotated
 import typer
 from rich.text import Text
 
-from slmeval.cli.loading import open_project
+from slmeval.cli.loading import LATEST, open_project, resolve_run
 from slmeval.cli.render import console, symbols
 from slmeval.cli.wrap import handle_errors
-from slmeval.errors import ConfigError
 from slmeval.report.export import FORMATS, export
 from slmeval.report.model import build_scorecard
 from slmeval.report.scorecard import (
@@ -31,9 +30,6 @@ from slmeval.report.scorecard import (
     render_scorecard,
     render_summary_line,
 )
-from slmeval.storage.db import RunStore
-
-LATEST = "latest"
 
 
 @handle_errors
@@ -72,7 +68,7 @@ def report(
     sym = symbols(ascii_mode or None)
 
     with open_project(config, load_agent=False) as project:
-        resolved = _resolve(project.store, run_id)
+        resolved = resolve_run(project.store, run_id)
         card = build_scorecard(project.store, resolved, prices_as_of=project.prices.as_of)
 
         if fmt != "table":
@@ -96,18 +92,6 @@ def report(
             out.print()
             out.print(line)
         out.print()
-
-
-def _resolve(store: RunStore, run_id: str) -> str:
-    if run_id == LATEST:
-        latest = store.latest_run()
-        if latest is None:
-            raise ConfigError(
-                "no runs stored yet",
-                hint="run `slmeval run` first, then `slmeval report`",
-            )
-        return latest.run_id
-    return store.resolve_run_id(run_id)
 
 
 def register(app: typer.Typer) -> None:

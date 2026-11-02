@@ -1,0 +1,7 @@
+cassette misses
+case              call                                verdict                   found by         execs
+status_other      fetch_order({"order_id":"9921"})    unrecorded_valid_path     sloppy-router        2
+status_shipped    fetch_order({"order_id":"9921"})    hallucinated_parameter    sloppy-router        2
+
+  1 coverage gap(s) of ours, 1 hallucinated call(s)
+  -> slmeval record --fill-gaps --run-id <run-id>

@@ -105,6 +105,30 @@ def open_project(
         project.close()
 
 
+LATEST = "latest"
+"""What every command accepts in place of a run id."""
+
+
+def resolve_run(store: RunStore, run_id: str = LATEST) -> str:
+    """``latest``, a full run id, or an unambiguous prefix, resolved to one id.
+
+    Shared by ``report``, ``show`` and ``gate`` rather than written three
+    times: all three have to treat ``latest`` identically, and a prefix that
+    matches two runs has to be refused rather than resolved to whichever one
+    sorted first - a report for a run the user was not asking about is worse
+    than an error.
+    """
+    if run_id == LATEST:
+        latest = store.latest_run()
+        if latest is None:
+            raise ConfigError(
+                "no runs stored yet",
+                hint="run `slmeval run` first",
+            )
+        return latest.run_id
+    return store.resolve_run_id(run_id)
+
+
 def _dataset(loaded: LoadedConfig) -> Dataset:
     path = loaded.dataset_path
     if not path.is_file():
@@ -122,4 +146,4 @@ def _unloaded(_: object) -> object:  # pragma: no cover - never called
     raise ConfigError("the agent was not loaded for this command")
 
 
-__all__ = ["Project", "open_project"]
+__all__ = ["LATEST", "Project", "open_project", "resolve_run"]

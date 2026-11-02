@@ -17,8 +17,16 @@ anything:
 :mod:`slmeval.report.attribution`
     Per-node attribution - which node each candidate broke in, and therefore
     which node to leave on the bigger model.
+:mod:`slmeval.report.drilldown`
+    The failure drill-down: one execution's timeline, and two of them side by
+    side with the divergence marked and the cassette-miss block inline.
+:mod:`slmeval.report.baseline`
+    ``slmeval.baseline.json``: the committed reference a gate compares
+    against, metrics plus the provenance that says whether comparing is even
+    valid.
 :mod:`slmeval.report.export`
-    ``json`` (a versioned contract), ``md`` (for PR comments), ``csv``.
+    ``json`` (a versioned contract), ``md`` (for PR comments), ``csv``, and
+    ``junit`` (per-case rows for a CI dashboard that already exists).
 :mod:`slmeval.report.progress`
     The live run view, as an observer the runner knows nothing about.
 """
@@ -26,12 +34,29 @@ anything:
 from __future__ import annotations
 
 from slmeval.report.attribution import NodeCell, node_cells, render_attribution
+from slmeval.report.baseline import Baseline, CandidateBaseline, baseline_path
+from slmeval.report.drilldown import (
+    Alignment,
+    Diff,
+    Gap,
+    Pair,
+    align,
+    build_diff,
+    diff_payload,
+    execution_payload,
+    gaps,
+    render_diff,
+    render_execution,
+    render_gaps,
+    render_run,
+)
 from slmeval.report.export import (
     FORMATS,
     SCHEMA_VERSION,
     export,
     to_csv,
     to_json,
+    to_junit,
     to_markdown,
     to_payload,
 )
@@ -52,22 +77,39 @@ from slmeval.report.scorecard import (
 __all__ = [
     "FORMATS",
     "SCHEMA_VERSION",
+    "Alignment",
+    "Baseline",
+    "CandidateBaseline",
     "CandidateReport",
+    "Diff",
+    "Gap",
     "Incident",
     "NodeCell",
+    "Pair",
     "ProgressObserver",
     "Scorecard",
     "Tally",
+    "align",
+    "baseline_path",
+    "build_diff",
     "build_scorecard",
     "candidate_report",
+    "diff_payload",
+    "execution_payload",
     "export",
+    "gaps",
     "node_cells",
     "render_attribution",
+    "render_diff",
+    "render_execution",
+    "render_gaps",
     "render_rollups",
+    "render_run",
     "render_scorecard",
     "render_summary_line",
     "to_csv",
     "to_json",
+    "to_junit",
     "to_markdown",
     "to_payload",
 ]

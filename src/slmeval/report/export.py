@@ -10,6 +10,9 @@ Markdown is for pull-request comments, which is where most people will first
 see this tool's output. CSV is for the spreadsheet somebody will inevitably
 build, and it is deliberately long and narrow - one row per candidate per
 metric - because a wide CSV becomes a migration every time a metric is added.
+JUnit XML is for the CI dashboard that already exists: one test case per
+``(candidate, case)``, so a team gets per-case history in the tool they already
+read without learning anything about this one.
 
 The same honesty rules apply in every format. ``null`` stays ``null``: an
 unpriced model must not export as ``0``, a latency that was not measured must
@@ -24,12 +27,15 @@ import csv
 import io
 from collections.abc import Iterable
 from typing import Any, Final
+from xml.etree import ElementTree
 
 from slmeval.report.model import CandidateReport, Scorecard
 from slmeval.storage import codec
 
 SCHEMA_VERSION: Final = "slmeval.report/1"
 """Versioned on purpose. Consumers branch on it; it changes additively."""
+
+XML_HEADER: Final = '<?xml version="1.0" encoding="UTF-8"?>\n'
 
 
 def to_payload(card: Scorecard) -> dict[str, Any]:
@@ -299,11 +305,105 @@ def _csv_metrics(
         yield ("p95_ms", row.p95_ms, executions)
 
 
+def to_junit(card: Scorecard) -> str:
+    """JUnit XML: one test case per ``(candidate, case)``.
+
+    This is the format that gets slmeval into a team's existing dashboard, so
+    the mapping onto JUnit's three states is a judgement worth stating:
+
+    ``failure``
+        the case did not pass every repeat. The message carries ``c/n`` and the
+        Wilson interval, because "2/3" and "2/3 [21%, 94%]" lead to different
+        decisions and only one of them is honest.
+    ``skipped``
+        nothing judgeable was measured - every repeat was a harness error or an
+        uncovered path. Neither green nor red is exactly right, and JUnit's
+        vocabulary already has the word for it. A dashboard that showed our own
+        recording gap as a model failure would be the tool inventing a
+        regression.
+    passing
+        every judged repeat passed.
+
+    The baseline gets its own suite rather than being dropped: a dashboard
+    whose history shows the frontier model failing a case is how a team finds
+    out the *case* is wrong, not the candidate.
+
+    No ``time`` attribute. Per-case wall time is only meaningful on a
+    ``--serial-latency`` run, and a dashboard that plotted concurrency noise as
+    a latency trend would be worse than a dashboard with no trend at all.
+    """
+    run = card.run
+    suites = ElementTree.Element("testsuites", {"name": f"slmeval.{run.name}"})
+    totals = {"tests": 0, "failures": 0, "skipped": 0}
+
+    for row in card.rows:
+        cases = [(case_id, row.rollups.get(case_id)) for case_id in card.cases]
+        failures = [c for _, c in cases if c is not None and c.n and not c.all_passed]
+        skipped = [case_id for case_id, c in cases if c is None or not c.n]
+        suite = ElementTree.SubElement(
+            suites,
+            "testsuite",
+            {
+                "name": f"slmeval.{run.name}.{row.candidate_id}",
+                "tests": str(len(cases)),
+                "failures": str(len(failures)),
+                "skipped": str(len(skipped)),
+                "errors": "0",
+            },
+        )
+        properties = ElementTree.SubElement(suite, "properties")
+        for name, value in (
+            ("run_id", run.run_id),
+            ("role", row.role),
+            ("provider", row.provider),
+            ("model", row.model),
+            ("runs_per_case", str(card.repeats)),
+            ("dataset_hash", run.dataset_hash),
+            ("config_hash", run.config_hash),
+            ("slmeval_version", run.slmeval_version),
+        ):
+            ElementTree.SubElement(properties, "property", {"name": name, "value": value})
+
+        for case_id, stats in cases:
+            case = ElementTree.SubElement(
+                suite,
+                "testcase",
+                {"classname": f"slmeval.{run.name}.{row.candidate_id}", "name": case_id},
+            )
+            totals["tests"] += 1
+            if stats is None or not stats.n:
+                reason = (
+                    "no judgeable repeat: every run was a harness error or took a "
+                    "path the cassettes do not cover (`slmeval record --fill-gaps`)"
+                )
+                ElementTree.SubElement(case, "skipped", {"message": reason})
+                totals["skipped"] += 1
+                continue
+            if stats.all_passed:
+                continue
+            interval = f" {stats.interval.render()}" if stats.interval else ""
+            message = (
+                f"{stats.c}/{stats.n} repeat(s) passed{interval}"
+                + (f", {stats.excluded} not judgeable" if stats.excluded else "")
+            )
+            ElementTree.SubElement(
+                case, "failure", {"message": message, "type": "pass_hat_k"}
+            ).text = message
+            totals["failures"] += 1
+
+    suites.set("tests", str(totals["tests"]))
+    suites.set("failures", str(totals["failures"]))
+    suites.set("skipped", str(totals["skipped"]))
+    return (
+        XML_HEADER + ElementTree.tostring(suites, encoding="unicode") + "\n"
+    )
+
+
 def _pct(value: float | None) -> str:
     return f"{value:.1%}" if value is not None else "—"
 
 
-FORMATS: Final = ("table", "json", "md", "csv")
+FORMATS: Final = ("table", "json", "md", "csv", "junit")
 
 
 def export(card: Scorecard, fmt: str) -> str:
@@ -314,6 +414,8 @@ def export(card: Scorecard, fmt: str) -> str:
         return to_markdown(card)
     if fmt == "csv":
         return to_csv(card)
+    if fmt == "junit":
+        return to_junit(card)
     raise ValueError(f"unknown export format {fmt!r}; expected one of {', '.join(FORMATS)}")
 
 
@@ -324,6 +426,7 @@ __all__ = [
     "export",
     "to_csv",
     "to_json",
+    "to_junit",
     "to_markdown",
     "to_payload",
 ]

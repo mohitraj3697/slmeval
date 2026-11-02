@@ -274,6 +274,89 @@ class BaselineCfg(ModelCfg):
     id: str = "baseline"
 
 
+class JudgeCfg(ModelCfg):
+    """The Tier 3 judge: which model grades, and what it must have proved.
+
+    Optional, and off until `[judge]` names a model. Tiers 1 and 2 are free and
+    carry most of the signal; a judge is for the remainder, and a judge nobody
+    has calibrated is worse than no judge - it produces numbers with the same
+    confidence as the measured ones.
+    """
+
+    id: str = "judge"
+    provider: Provider = "openai"
+    model: str = ""
+    """Empty means no judge. Tier 3 simply does not run."""
+
+    min_agreement: Annotated[float, Field(ge=0.0, le=1.0)] = 0.7
+    """Floor on the judge's measured agreement with human labels, read on the
+    Wilson lower bound like everything else here.
+
+    `slmeval judge calibrate` writes the measurement to `slmeval.judge.json`,
+    which is committed for the same reason the baseline is: "we accepted a
+    judge that agrees with us 71% of the time" should be a diff somebody
+    approved, not a number in one laptop's cache."""
+
+    allow_uncalibrated: bool = False
+    """Run the judge with no calibration record at all. Off by default, and
+    every figure derived from it is labelled UNCALIBRATED when it is on."""
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.model)
+
+
+class GateCfg(StrictModel):
+    """Default thresholds for `slmeval gate`, so CI can call it bare.
+
+    The whole point of committing these is that the thresholds a team agreed on
+    live beside the benchmark and get reviewed with it, rather than in a CI
+    YAML nobody reads. Every flag on `slmeval gate` overrides whatever is here.
+
+    Quality limits are `None` by default - off. A threshold nobody chose is a
+    threshold nobody will defend the first time it fires spuriously, and by
+    then the whole gate gets disabled. The two that do have defaults are not
+    quality judgements: they describe whether the run can be judged at all.
+    """
+
+    min_pass_k: Annotated[float | None, Field(ge=0.0, le=1.0)] = None
+    """Floor on `pass^k`, read on the Wilson lower bound by default."""
+
+    use_wilson_lower: bool = True
+    """Gate on the lower bound, not the point estimate.
+
+    With three repeats, 3/3 is a point estimate of 100% and a lower bound near
+    44%. Reading the point estimate waves through a model that fails one
+    request in four; see `slmeval.eval.stats`. Turning this off is a deliberate
+    act and the gate reports which estimator it used.
+    """
+
+    max_cost_ratio: Annotated[float | None, Field(gt=0.0)] = None
+    """Candidate cost per case, as a fraction of the baseline's. 0.4 = 60% off."""
+
+    max_p95_ratio: Annotated[float | None, Field(gt=0.0)] = None
+    """Only enforceable on a `--serial-latency` run; skipped, loudly, otherwise."""
+
+    no_forbidden_tools: bool = True
+    """On by default: a call to the tool that moves money is never acceptable
+    at any pass rate, so noticing it is not something to opt in to."""
+
+    max_regression: Annotated[float | None, Field(ge=0.0, le=1.0)] = None
+    """Allowed drop in `pass^k` against the committed `slmeval.baseline.json`."""
+
+    max_uncovered: Annotated[float, Field(ge=0.0, le=1.0)] = 0.2
+    """Share of a candidate's executions that may take unrecorded paths before
+    the run is judged uncoverable (exit 4) rather than failed (exit 1)."""
+
+    max_provider_error_rate: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
+    """Share of executions that may fail to reach the model server before the
+    job is called broken (exit 3). Zero by default - "Ollama was not running"
+    must never read as a regression."""
+
+    require_fault_parity: bool = False
+    """Refuse to compare candidates that met different injected faults."""
+
+
 class EvalConfig(StrictModel):
     """The whole `eval.toml`."""
 
@@ -281,6 +364,11 @@ class EvalConfig(StrictModel):
     target: TargetCfg
     baseline: BaselineCfg
     candidates: list[ModelCfg] = Field(default_factory=list)
+    gate: GateCfg = Field(default_factory=GateCfg)
+    judge: JudgeCfg = JudgeCfg(temperature=0.0, max_tokens=512)
+    """Off until `[judge]` names a model. 512 tokens is a verdict and two
+    sentences of reasoning; a judge given room to write an essay writes one,
+    and pays for it per execution."""
 
     @model_validator(mode="after")
     def _check_ids(self) -> EvalConfig:
@@ -314,6 +402,19 @@ class EvalConfig(StrictModel):
         produced under different settings. Paths are excluded because the same
         benchmark run from two checkouts is still the same benchmark.
         """
-        payload = self.model_dump(mode="json", exclude={"benchmark": {"dataset"}})
+        # `gate` is excluded with the dataset path, and for a sharper reason:
+        # a gate threshold changes the *verdict* on a run, never what the run
+        # measured. Two runs that differ only in their thresholds are perfectly
+        # comparable, and hashing them apart would make `compare` refuse a
+        # comparison that is entirely valid.
+        exclude: dict[str, Any] = {"benchmark": {"dataset"}, "gate": True}
+        if not self.judge.enabled:
+            # A judge nobody configured measures nothing, so it must not change
+            # the hash - otherwise every committed baseline in existence would
+            # stop comparing the day this field was added, for a feature its
+            # owner never turned on. An *enabled* judge is hashed, because a
+            # pass rate that includes its verdicts is a different measurement.
+            exclude["judge"] = True
+        payload = self.model_dump(mode="json", exclude=exclude)
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]

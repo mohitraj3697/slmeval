@@ -1,0 +1,62 @@
+# Copy this into .github/workflows/slmeval.yml.
+#
+# It needs no GPU, no API key and no self-hosted runner, because the agent's
+# tool calls are replayed from a cassette store and the models are whatever
+# your eval.toml points at. A standard ubuntu-latest runner is enough.
+#
+# Two things to decide before this is useful on your repository:
+#
+# 1. **Where the cassettes come from.** Record them once locally
+#    (`slmeval record`), then either commit `.slmeval/cassettes.sqlite`
+#    somewhere stable and pass it as `cassettes:`, or let the `actions/cache`
+#    step below carry it between runs. The committed file is the reproducible
+#    option - a cache can be evicted, and then the gate exits 4 until someone
+#    records again.
+#
+# 2. **Where the thresholds live.** Put them in the `[gate]` section of
+#    eval.toml rather than in `gate-args` here, so that the numbers are
+#    reviewable in a diff and the same gate runs locally.
+
+name: slmeval
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write # the sticky comment
+
+concurrency:
+  group: slmeval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: agent benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: slmeval/slmeval/examples/github-action@main
+        with:
+          working-directory: evals
+          # A committed cassette store: reproducible, and immune to cache
+          # eviction. Drop this line to rely on actions/cache instead.
+          cassettes: evals/cassettes.sqlite
+          # Thresholds live in eval.toml; this is for the ones that are a
+          # property of CI rather than of the benchmark.
+          gate-args: --use-wilson-lower
+
+      # `gate` has already failed the job if a threshold was missed. Everything
+      # below is for the reviewer: the JUnit file feeds whatever dashboard the
+      # team already reads.
+      - name: Publish per-case results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slmeval-junit
+          path: evals/slmeval-junit.xml
+          if-no-files-found: ignore

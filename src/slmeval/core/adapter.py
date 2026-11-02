@@ -12,8 +12,13 @@ user who marks none still gets a working benchmark - just one row in the
 per-node table instead of five. That gradient matters for adoption: the tool has
 to be useful before it is fully wired in.
 
-The ``langgraph`` adapter, which wraps a compiled graph's nodes so the user
-marks nothing at all, lands in week 3.
+The ``langgraph`` adapter loads the same way. It is not a second code path
+here: a LangGraph target is still one coroutine returning the final state, and
+the difference is what the user does inside it - one call to
+``slmeval.instrument_langgraph(builder)`` instead of a ``node()`` block per
+step. See :mod:`slmeval.adapters.langgraph`. The setting exists so the config
+says which style a project uses, and so `validate` can tell a reader; the
+harness itself has no reason to know.
 
 Two rules the context layer imposes on anything in this file:
 
@@ -183,17 +188,15 @@ def load_target(
     extra_paths: Sequence[Path | str] = (),
 ) -> Target:
     """Load the agent named by ``[target]`` in eval.toml."""
-    if adapter == "generic":
+    if adapter in {"generic", "langgraph"}:
+        # Both load the same way, because both end at one coroutine taking a
+        # case's input and returning the final state. `langgraph` differs in
+        # what the user does *inside* that coroutine - they call
+        # `slmeval.instrument_langgraph(builder)` instead of marking nodes by
+        # hand - and the harness has no reason to care which they chose. That
+        # is the point of the context layer: the adapter setting is a note to
+        # the reader, not a second code path to maintain.
         return Target.load(entrypoint, root=root, extra_paths=extra_paths)
-    if adapter == "langgraph":
-        raise ConfigError(
-            "the langgraph adapter is not implemented yet (step 7, week 3)",
-            hint=(
-                'Use adapter = "generic" today: call slmeval.chat_model() inside your '
-                "graph's nodes and wrap each one in `with node(\"name\")`. That gives "
-                "the same per-node attribution, by hand."
-            ),
-        )
     raise ConfigError(
         f"unknown target adapter {adapter!r}",
         hint='adapter must be "generic" or "langgraph"',
