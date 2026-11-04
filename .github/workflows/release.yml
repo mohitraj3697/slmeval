@@ -106,7 +106,7 @@ jobs:
       # over OIDC, so there is no token in this repository to leak.
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: distributions
           path: dist
