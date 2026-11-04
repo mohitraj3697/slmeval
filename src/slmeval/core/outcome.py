@@ -38,7 +38,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Final
 
-from slmeval.core.context import StepBudgetExceeded
+from slmeval.core.context import MissingRunContext, StepBudgetExceeded
 from slmeval.errors import SlmevalError
 from slmeval.providers.base import ProviderError, StructuredOutputError
 from slmeval.sandbox.faults import FaultError
@@ -175,7 +175,15 @@ def classify(exc: BaseException | None) -> Classification:
 
     # The sandbox could not do its job while a benchmark was running, or the
     # context was lost crossing a thread boundary. Both are ours.
-    if isinstance(exc, SandboxNotReady | LookupError):
+    #
+    # `MissingRunContext`, not `LookupError`: a bare `KeyError` or `IndexError`
+    # is the single most common way an agent crashes - `tracking["carrier"]` on
+    # a payload an `empty_result` fault just emptied - and filing that as our
+    # bug dropped it from every rate in the report. Which is the exact failure
+    # fault injection exists to measure, excluded by the harness that injected
+    # it. Our own context loss has a name now, so it stays ours and everything
+    # else is attributed by where it was raised.
+    if isinstance(exc, SandboxNotReady | MissingRunContext):
         return Classification(
             status=ExecStatus.ERROR,
             outcome=Outcome.HARNESS_ERROR,

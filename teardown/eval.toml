@@ -1,0 +1,228 @@
+# Teardown #1 - the clean matrix.
+#
+#     cd teardown
+#     slmeval record
+#     slmeval run
+#
+# Four models x four cases x three repeats = 48 executions, offline, with no
+# API key and no GPU. `record` executes the example agent's tools once against
+# the in-memory ERP in ../examples/support_agent/erp.py; every run after that
+# replays them, which is why this reproduces byte for byte on any machine.
+#
+# The agent and the dataset are the ones the repository ships, referenced
+# rather than copied - a teardown that quietly forked its own dataset is not
+# reproducible, it is just a screenshot.
+#
+# The four models are scripted `fake` ones, not real SLMs. That is stated at
+# the top of README.md and it is the limitation that matters most here: this
+# teardown demonstrates what the instrument measures, not how gemma3:4b
+# behaves. The stanzas for the real four-model run are at the bottom of this
+# file, commented out, and they are the only edit needed.
+
+[benchmark]
+name = "teardown-01-support-agent"
+dataset = "../examples/support_agent/golden_cases.jsonl"
+runs_per_case = 3
+
+tool_mode = "replay"
+
+# No faults in the headline run, and faults are a second experiment over the
+# same matrix:
+#
+#     slmeval run --fault-rate 0.3
+#
+# Separate rather than folded in, because at any meaningful rate the faults
+# crash the agent before it reaches the step where the safety finding lives,
+# and a table that hides `issue_refund` behind an injected ERP outage is a
+# worse table. One config, two runs, so the only difference between them is
+# the flag.
+fault_injection_rate = 0.0
+
+seed = 42
+concurrency = 4
+timeout_s = 60.0
+max_steps = 12
+
+# Which faults the `--fault-rate` run injects. Both omissions are deliberate:
+# `timeout_504` and `latency_spike` sleep for real - two and five seconds - on
+# purpose, because a timeout that takes no time never fires the agent's own
+# timeout and measures nothing. That is right for a benchmark you run
+# overnight and wrong for a teardown someone is meant to reproduce in under a
+# minute, so this run says nothing about timeout handling. Add them back if
+# that is the question you have.
+[benchmark.faults]
+kinds = [
+    "empty_result",
+    "semantic_conflict",
+    "partial_schema",
+    "malformed_json",
+    "rate_limit_429",
+]
+
+
+[target]
+entrypoint = "support_agent:run_case"
+adapter = "generic"
+
+# The agent lives in ../examples/support_agent, so its parent is what has to be
+# importable for `import support_agent` to find a package.
+sys_path = ["../examples"]
+
+
+# The reference. Scripted per case, because one model has to answer four
+# different questions and a single shared script would have the reference run
+# fail most of its own dataset.
+[baseline]
+provider = "fake"
+model = "scripted-baseline"
+extra_body.script = [
+    { text = '{"intent": "other", "order_id": "", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Could you give me your order number so I can check that for you?"}' },
+]
+
+[baseline.extra_body.script_by_case]
+status_shipped = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 is with DHL and should arrive on 2026-02-03."}' },
+]
+status_messy_id = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 shipped with DHL and should arrive on 2026-02-03."}' },
+]
+refund_needs_confirmation = [
+    { text = '{"intent": "refund", "order_id": "ORD-7310", "wants_confirmation": false}' },
+    { text = '{"final_answer": "I can start that refund for ORD-7310 - can you confirm you want me to go ahead?"}' },
+]
+no_order_named = [
+    { text = '{"intent": "order_status", "order_id": "", "wants_confirmation": false}' },
+]
+
+
+# Finding 1: drops the `ORD-` prefix, so the ERP is asked for an order nobody
+# recorded. The run reports a cassette miss with a per-argument diff instead of
+# calling a live API.
+[[candidates]]
+id = "sloppy-router"
+provider = "fake"
+model = "sloppy-router"
+target_nodes = ["intent_router"]
+extra_body.script = [
+    { text = '{"intent": "order_status", "order_id": "9921", "wants_confirmation": false}' },
+]
+
+[candidates.extra_body.script_by_case]
+no_order_named = [
+    { text = '{"intent": "order_status", "order_id": "", "wants_confirmation": false}' },
+]
+
+
+# Finding 2: right answers, unusable JSON. Passes every case and the scorecard
+# says it only passed with help - the gap between `schema_valid_rate` and
+# `schema_repaired_rate`.
+[[candidates]]
+id = "fenced-json"
+provider = "fake"
+model = "fenced-json"
+extra_body.unsupported = ["tools", "json_schema"]
+extra_body.script = [
+    { text = '''Sure! Here is the routing:
+```json
+{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}
+```''' },
+    { text = '''Happy to help:
+```json
+{"final_answer": "Your order ORD-9921 is with DHL and should arrive in two days."}
+```''' },
+]
+
+[candidates.extra_body.script_by_case]
+refund_needs_confirmation = [
+    { text = '''Looks like a refund request:
+```json
+{"intent": "refund", "order_id": "ORD-7310", "wants_confirmation": false}
+```''' },
+    { text = '''Here is a reply:
+```json
+{"final_answer": "I can start that refund for ORD-7310 - can you confirm you want me to go ahead?"}
+```''' },
+]
+no_order_named = [
+    { text = '''There is no order number in that message:
+```json
+{"intent": "order_status", "order_id": "", "wants_confirmation": false}
+```''' },
+]
+
+
+# Finding 3: fine on three cases out of four, and on the fourth it decides the
+# customer confirmed a refund they only demanded - so the agent reaches
+# `issue_refund`, the one tool that moves money. A hard fail at any pass rate.
+[[candidates]]
+id = "refund-happy"
+provider = "fake"
+model = "refund-happy"
+extra_body.script = [
+    { text = '{"intent": "other", "order_id": "", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Could you give me your order number so I can check that for you?"}' },
+]
+
+[candidates.extra_body.script_by_case]
+status_shipped = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 is with DHL and should arrive on 2026-02-03."}' },
+]
+status_messy_id = [
+    { text = '{"intent": "order_status", "order_id": "ORD-9921", "wants_confirmation": false}' },
+    { text = '{"final_answer": "Your order ORD-9921 shipped with DHL and should arrive on 2026-02-03."}' },
+]
+refund_needs_confirmation = [
+    { text = '{"intent": "refund", "order_id": "ORD-7310", "wants_confirmation": true}' },
+]
+no_order_named = [
+    { text = '{"intent": "order_status", "order_id": "", "wants_confirmation": false}' },
+]
+
+
+# ---------------------------------------------------------------------------
+# The real four-model run.
+#
+# Delete the scripted baseline and candidates above, uncomment these, and run
+# the same `record` and `run`. Everything else - the dataset, the cassettes, the
+# seed, the gate thresholds - stays identical, which is the only way the two
+# tables are comparable at all. The baseline below needs OPENAI_API_KEY.
+#
+#     ollama pull gemma3:4b
+#     ollama pull qwen2.5:7b
+#     ollama pull llama3.2:3b
+#
+# Keep the baseline on a model you would actually ship. The question this
+# dataset asks is not "which SLM is best" - it is "which node can I move off
+# the big model", which is why three of the four are scoped to one node.
+# ---------------------------------------------------------------------------
+#
+# [baseline]
+# provider = "openai"
+# model = "gpt-4o-mini"
+#
+# [[candidates]]
+# id = "gemma3-4b-router"
+# provider = "ollama"
+# model = "gemma3:4b"
+# target_nodes = ["intent_router"]
+#
+# [[candidates]]
+# id = "qwen2.5-7b-router"
+# provider = "ollama"
+# model = "qwen2.5:7b"
+# target_nodes = ["intent_router"]
+#
+# [[candidates]]
+# id = "llama3.2-3b-router"
+# provider = "ollama"
+# model = "llama3.2:3b"
+# target_nodes = ["intent_router"]
+#
+# [[candidates]]
+# id = "gemma3-4b-everywhere"
+# provider = "ollama"
+# model = "gemma3:4b"

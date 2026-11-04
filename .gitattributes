@@ -9,3 +9,7 @@
 
 # Rendered goldens, compared byte-for-byte against what the tool prints.
 tests/snapshots/*.txt text eol=lf
+
+# Published teardown artifacts, diffed against a fresh run by
+# `scripts/teardown.py --check`, which CI runs on Windows and Linux.
+teardown/artifacts/* text eol=lf

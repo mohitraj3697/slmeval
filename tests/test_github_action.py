@@ -42,7 +42,7 @@ DEMO = ROOT / ".github" / "workflows" / "gate-demo.yml"
 #: cost a dependency the core install does not have.
 #:
 #: The boundaries carry weight. ``slmeval-cassettes-…`` is a cache key and
-#: ``slmeval/slmeval/examples/…`` is an action reference - neither is a command
+#: ``mohitraj3697/slmeval/examples/…`` is an action reference - neither is a command
 #: line - and matching ``[ \t]`` rather than ``\s`` keeps a YAML ``id: slmeval``
 #: from swallowing whatever is on the next line.
 INVOCATION = re.compile(r"(?<![\w/.-])slmeval(?![\w/.-])[ \t]+([^\n`]+)")

@@ -235,8 +235,26 @@ def to_markdown(card: Scorecard) -> str:
         f"`pass^{card.repeats}` is the fraction of cases passing every repeat; "
         "the interval is the Wilson 95% bound on it. Gate on the lower bound, "
         "not the point estimate.",
-        f"Prices as of {card.prices_as_of}.",
     ]
+
+    # Same footnote the terminal prints, and for the same reason: a run under
+    # injected faults where nothing recovered has no other column saying so.
+    # The pass rate drops, and without this line a reader reads that as the
+    # models being worse rather than as the agent falling over on the first
+    # empty payload it was handed.
+    recovery = [
+        (row.candidate_id, row.recovery_rate, row.faults_met)
+        for row in card.rows
+        if row.recovery_rate is not None
+    ]
+    if recovery:
+        lines.append(
+            "Recovery from injected faults: "
+            + ", ".join(f"{name} {rate:.0%}" for name, rate, _ in recovery)
+            + f" (over {sum(met for _, _, met in recovery)} fault(s) met)."
+        )
+
+    lines.append(f"Prices as of {card.prices_as_of}.")
     return "\n".join(lines)
 
 

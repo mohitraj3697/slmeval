@@ -4,7 +4,7 @@ Block the merge when a model swap makes the agent worse.
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: slmeval/slmeval/examples/github-action@main
+- uses: mohitraj3697/slmeval/examples/github-action@main
   with:
     working-directory: evals
     cassettes: evals/cassettes.sqlite

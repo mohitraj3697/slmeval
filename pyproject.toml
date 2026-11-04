@@ -9,7 +9,7 @@ description = "Benchmark agent workflows across small language models — locall
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "slmeval contributors" }]
+authors = [{ name = "Mohit Raj" }]
 keywords = [
     "llm",
     "slm",
@@ -59,8 +59,8 @@ dev = [
 slmeval = "slmeval.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/slmeval/slmeval"
-Issues = "https://github.com/slmeval/slmeval/issues"
+Homepage = "https://github.com/mohitraj3697/slmeval"
+Issues = "https://github.com/mohitraj3697/slmeval/issues"
 
 [tool.hatch.version]
 path = "src/slmeval/__init__.py"

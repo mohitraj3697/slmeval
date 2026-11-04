@@ -363,6 +363,29 @@ def test_the_markdown_export_leads_with_the_warnings(unsafe_card) -> None:  # ty
     assert "Gate on the lower bound" in text
 
 
+def test_the_markdown_export_carries_the_recovery_rate(card) -> None:  # type: ignore[no-untyped-def]
+    """The markdown table is what gets pasted into a pull request.
+
+    A faulted run has no recovery *column* - it is a footnote, as in the
+    terminal - and it is the only thing in the report that explains why the
+    pass rates dropped. Without it a reviewer reads a faulted table as the
+    models having got worse, when what happened is that the agent fell over
+    on the first empty payload a tool handed it.
+    """
+    faulted = replace(
+        card,
+        rows=tuple(replace(row, faults_met=4, recovered=1) for row in card.rows),
+    )
+    text = to_markdown(faulted)
+    assert "Recovery from injected faults:" in text
+    assert "25%" in text
+    assert "8 fault(s) met" in text
+
+    # And absent, not zero, when no fault was injected: a line claiming 0%
+    # recovery on a run with no faults in it would be a fabricated finding.
+    assert "Recovery from injected faults" not in to_markdown(card)
+
+
 def test_the_csv_export_is_long_and_narrow(card) -> None:  # type: ignore[no-untyped-def]
     """Narrow, so adding a metric in week 3 appends rows instead of changing
     every consumer's columns."""

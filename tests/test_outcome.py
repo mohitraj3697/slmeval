@@ -15,7 +15,7 @@ import asyncio
 
 import pytest
 
-from slmeval.core.context import StepBudgetExceeded
+from slmeval.core.context import MissingRunContext, StepBudgetExceeded, require_context
 from slmeval.core.outcome import classify, raised_inside_slmeval
 from slmeval.errors import ConfigError
 from slmeval.providers.base import ProviderUnreachable, StructuredOutputError
@@ -190,8 +190,36 @@ def test_a_sandbox_that_cannot_do_its_job_is_our_bug() -> None:
 
 
 def test_a_lost_context_is_our_bug() -> None:
-    result = classify(raised(LookupError("replay requires a benchmark run context")))
+    result = classify(raised(MissingRunContext("replay requires a benchmark run context")))
     assert result.outcome is Outcome.HARNESS_ERROR
+
+
+def test_a_lost_context_is_what_require_context_actually_raises() -> None:
+    """The classifier keys on the type, so the raise site has to produce it.
+
+    Asserted against the real function rather than a hand-built exception: a
+    `require_context` that went back to a bare `LookupError` would make the
+    test above pass while every lost context in a real run was filed as the
+    agent crashing.
+    """
+    with pytest.raises(MissingRunContext):
+        require_context("replay")
+
+
+def test_a_keyerror_in_the_agent_is_not_our_bug() -> None:
+    """`KeyError` is a `LookupError`, and it used to be filed as ours.
+
+    This is how an agent crashes under an `empty_result` fault: the tool
+    returns `{}` and the next line does `tracking["carrier"]`. Counted as a
+    harness error it left every rate in the report, so the fault injector's
+    most interesting finding was being swallowed by the harness that injected
+    it. It is the agent's crash, and it has to reach the scorecard as one.
+    """
+    for exc in (KeyError("carrier"), IndexError("list index out of range")):
+        result = classify(raised(exc))
+        assert result.outcome is Outcome.CRASHED, exc
+        assert not result.harness_error
+        assert result.judgeable
 
 
 def test_an_exception_raised_inside_slmeval_is_attributed_to_us() -> None:

@@ -11,17 +11,22 @@ model won't break step 7 of a 10-step tool-calling loop.
 against every candidate model, and prints what each swap actually costs you.
 
 ```text
- refund-agent-slm-downsizing · 10 cases × 3 runs · replay · faults 10% · seed 42
+  teardown-01-support-agent · 4 cases x 3 runs · replay · no faults · seed 42 · throughput
 
- Candidate            pass^3   95% CI        Schema  Tool F1  Steps  p95 ms   Cost/case   Δ Cost
- ───────────────────────────────────────────────────────────────────────────────────────────────
- baseline gpt-4o      96.7%    [83%, 99%]    100%     0.98     4.1    1 240   $0.0182       —
- gemma3:4b-q4         83.3%    [66%, 93%]     88%     0.91     5.3      310   $0.0039    −78%
- qwen2.5-7b           93.3%    [78%, 98%]     97%     0.96     4.3      520   $0.0061    −66%
+  ✗ FORBIDDEN tool call: issue_refund in refund_needs_confirmation (refund-happy), 3x
+  ! fenced-json needed prompt-repair or a fallback rung on 100% of structured calls
 
- ⚠ gemma3:4b-q4 needed json_mode on 100% of calls, prompt-repair on 12%
- ✗ 1 forbidden tool call: issue_refund in refund_207 (gemma3:4b-q4)
+Candidate            pass^3         95% CI     runs    Schema    Tool F1    Steps      $/case    Δ Cost
+baseline baseline    100.0%    [51%, 100%]    12/12      100%       1.00      4.8    ~$0.0000         —
+sloppy-router         33.3%      [6%, 79%]      3/9      100%       0.40      1.8    ~$0.0000         —
+fenced-json          100.0%    [51%, 100%]    12/12        0%       1.00      4.8    ~$0.0000         —
+refund-happy          75.0%     [30%, 95%]     9/12      100%       0.96      4.8    ~$0.0000         —
 ```
+
+That is real output, shortened, from [Teardown #1](teardown). **The four models
+in it are scripted stand-ins, not real SLMs**, each written to fail in one known
+way, so it shows what the tool reports and says nothing about any real model.
+They cost nothing, which is why the cost columns are empty.
 
 Because tool calls are replayed from a local cache, **a benchmark run in CI
 needs no GPU and no API keys.**
@@ -79,6 +84,12 @@ slmeval record      # execute the real tools once, cache them
 slmeval run         # replay them against every candidate
 ```
 
+[Teardown #1](teardown) is that example put through the whole tool and
+published with every artifact it produced: the scorecard, the gate's exit 1,
+the cassette-miss diagnosis, and the fault-injection run that found a bug in
+our own example agent. Its models are scripted stand-ins rather than real SLMs,
+which it says in its first paragraph and again in its limitations.
+
 And as a library, the halves of the harness that are built:
 
 | API | |
@@ -120,11 +131,12 @@ A replay miss is not an exception string. The store is searched for the nearest
 recorded call, the arguments are diffed, and the result is classified:
 
 ```text
-✗ refund_104 · gemma3:4b · node=order_lookup · CASSETTE_MISS
-  tool: fetch_order_from_erp
-  called with: {"order_id": "9921"}
-  nearest recorded: {"order_id": "ORD-9921"}
+✗ status_shipped · sloppy-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "9921", "request_id": "req-9921"}
+  nearest recorded: {"order_id": "ORD-9921", "request_id": "req-ORD-9921"}
   diff: order_id: "ORD-9921" → "9921"   (dropped prefix)
+        request_id: "req-ORD-9921" → "req-9921"   (different value)
   verdict: hallucinated_parameter
 ```
 
@@ -143,8 +155,8 @@ The scorecard says a candidate lost four points. `slmeval show` says where.
 
 ```bash
 slmeval show run                      # every execution, worst first
-slmeval show exec sloppy.refund_207.r0   # one execution's whole timeline
-slmeval show case refund_207 --candidate gemma3-4b   # side by side
+slmeval show exec sloppy-router.status_shipped.r0   # one execution's whole timeline
+slmeval show case status_shipped --candidate sloppy-router   # side by side
 slmeval show uncovered                # what `record --fill-gaps` should record
 ```
 
@@ -154,18 +166,22 @@ visits one node twice reads as one insertion instead of a shifted tail — with
 the cassette-miss diagnosis block inline at the step that missed.
 
 ```text
-  status_shipped  baseline -> gemma3-4b
-  passed -> cassette_miss · 3 -> 2 steps
+  status_shipped  baseline → sloppy-router
+  passed → cassette_miss · 6 → 2 steps
 
 trajectory
-#    baseline              gemma3-4b
+#    baseline              sloppy-router
 1    intent_router         intent_router
 2    order_lookup          order_lookup
-3    compose_reply    -    -
+3    policy_check     -    —
+4    compose_reply    -    —
 
 tool calls
-#    baseline                                     gemma3-4b
-1    fetch_order({"order_id":"ORD-9921"})    ~    fetch_order({"order_id":"9921"})
+#    baseline                                           sloppy-router
+1    fetch_order({"order_id":"ORD-9921","reques    ~    fetch_order({"order_id":"9921","request_id"
+     t_id":"req-ORD-9921"})                             :"req-9921"})
+2    fetch_customer({"customer_id":"CUS-41"})      -    —
+3    fetch_tracking({"order_id":"ORD-9921"})       -    —
 ```
 
 Every `show` view takes `--json`, and none of them loads your agent: results
@@ -237,7 +253,7 @@ per candidate per case), and `--format json` is for everything else.
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: slmeval/slmeval/examples/github-action@main
+- uses: mohitraj3697/slmeval/examples/github-action@main
   with:
     working-directory: evals
     cassettes: evals/cassettes.sqlite
@@ -425,9 +441,9 @@ call with a schema walks a ladder and slmeval records the rung that *worked*:
 | `repair` | one re-ask carrying the validation error |
 
 Set `structured_output = "auto"` to walk it, or pin a rung so a published
-comparison is honest. Either way the scorecard can say *gpt-4o used native tools
-throughout; gemma3:4b needed json_mode on 100% of calls and prompt-repair on
-12%*.
+comparison is honest. Either way the scorecard says which rung each candidate needed:
+in [Teardown #1](teardown), *fenced-json needed json_mode on 57% of structured
+calls, and prompt-repair or a fallback rung on 100%*.
 
 JSON that only parses because our parser was forgiving — a fenced block, a prose
 preamble, a trailing comma, a Python dict — is counted as a leniency event and

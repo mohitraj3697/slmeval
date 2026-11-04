@@ -46,6 +46,17 @@ class SlmevalContextWarning(UserWarning):
     """Emitted when harness context is missing somewhere it was needed."""
 
 
+class MissingRunContext(LookupError):
+    """A path that cannot degrade could not find the run context.
+
+    A ``LookupError`` subclass because that is what this has always raised and
+    what callers catch, but a *named* one: the classifier has to tell our own
+    context loss apart from a ``KeyError`` in the agent under test, and
+    otherwise both are just ``LookupError``. See
+    :func:`slmeval.core.outcome.classify`.
+    """
+
+
 class StepBudgetExceeded(RuntimeError):
     """The agent exceeded `benchmark.max_steps`.
 
@@ -299,7 +310,9 @@ def require_context(feature: str) -> RunContext:
     """
     ctx = _context.get()
     if ctx is None:
-        raise LookupError(f"{feature} requires a benchmark run context.\n\n{_NO_CONTEXT_HINT}")
+        raise MissingRunContext(
+            f"{feature} requires a benchmark run context.\n\n{_NO_CONTEXT_HINT}"
+        )
     return ctx
 
 
@@ -385,6 +398,7 @@ def current_node_path() -> tuple[str, ...]:
 
 
 __all__ = [
+    "MissingRunContext",
     "RunContext",
     "SlmevalContextWarning",
     "StepBudgetExceeded",

@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: slmeval/slmeval/examples/github-action@main
+      - uses: mohitraj3697/slmeval/examples/github-action@main
         with:
           working-directory: evals
           # A committed cassette store: reproducible, and immune to cache

@@ -103,6 +103,37 @@ jobs:
             exit 1
           fi
 
+  # The published teardown, re-run. `tests/test_teardown.py` checks that the
+  # write-up still agrees with the artifacts next to it; only re-running the
+  # benchmark can check that the artifacts still agree with the tool. Without
+  # this, the first change that moved a number would leave a document on the
+  # front page of the repository quoting figures nothing produces any more.
+  #
+  # Both platforms, because the artifacts are committed from one of them and a
+  # path separator or a console codepage leaking into a published file is
+  # exactly the class of bug this repository's CI matrix exists to catch.
+  teardown:
+    name: the published teardown still reproduces (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e .
+
+      - name: Record, run, and diff against what is published
+        run: python scripts/teardown.py --check
+
   install-smoke:
     name: install smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
