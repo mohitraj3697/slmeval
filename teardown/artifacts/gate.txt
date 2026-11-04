@@ -5,7 +5,7 @@ $ slmeval gate --min-pass-k 0.5
 
 
   ✗ GATE FAILED  (exit 1)
-  teardown-01-support-agent · 20261103-000830-265067 · 4 cases x 3 runs · replay · seed 42
+  teardown-01-support-agent · 20261104-104349-760705 · 4 cases x 3 runs · replay · seed 42
   gating on the Wilson lower bound
 
 !     sloppy-router    coverage           3/12 execution(s) took paths the cassettes do not cover  
