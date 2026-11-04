@@ -4,4 +4,4 @@ intent_router        4 ok           4 ok             4 ok      8 fail/4
 order_lookup            -              -           2 fail             -
 compose_reply        4 ok           2 ok                -             -
 
-  sloppy-router held up on intent_router and broke in order_lookup -> keep baseline on order_lookup
+  sloppy-router failed in order_lookup, which it did not change -> look at what it did change: intent_router

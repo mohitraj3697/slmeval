@@ -123,7 +123,9 @@ async def run_case(case_input: dict) -> dict:
             state["refund_id"] = refund["refund_id"]
 
     with node("compose_reply"):
-        state["final_answer"] = await _compose(order, customer, tracking, policy, routing)
+        state["final_answer"] = await _compose(
+            order, customer, tracking, policy, routing, refund_issued=state["refund_issued"]
+        )
 
     return state
 
@@ -153,13 +155,21 @@ async def _compose(
     tracking: dict[str, Any],
     policy: dict[str, Any],
     routing: Routing,
+    *,
+    refund_issued: bool = False,
 ) -> str:
     llm = chat_model()
     completion = await llm.complete(
         [
             {
                 "role": "system",
-                "content": "Answer the customer in two sentences. Be specific about dates.",
+                "content": (
+                    "Answer the customer in two sentences, using only the facts given. "
+                    "Be specific about dates. Never write placeholders or invent details. "
+                    "If refund_issued is True, say the refund was issued. If they want a "
+                    "refund, refundable is True and refund_issued is False, ask them to "
+                    "confirm they want it. If refundable is False, give the reason."
+                ),
             },
             {
                 "role": "user",
@@ -167,7 +177,9 @@ async def _compose(
                     f"intent={routing.intent} order={order.order_id} "
                     f"state={order.state.value} total={order.total} "
                     f"tier={customer['tier']} carrier={tracking['carrier']} "
-                    f"eta={tracking['eta']} refundable={policy['eligible']}"
+                    f"eta={tracking['eta']} delivered={order.delivered_at} "
+                    f"refundable={policy['eligible']} reason={policy['reason']} "
+                    f"refund_issued={refund_issued}"
                 ),
             },
         ],

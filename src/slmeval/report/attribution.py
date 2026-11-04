@@ -157,27 +157,45 @@ def recommendation(
 ) -> Text | None:
     """The actionable sentence, when the data actually supports one.
 
-    It is offered only when a candidate is clean on at least one node and
-    failing on at least one other - the "downsize this node, not that one"
-    shape. A candidate that fails everywhere has no node worth keeping, and a
-    candidate that fails nowhere needs no advice; inventing a recommendation
-    for either would be the tool talking past its own evidence.
+    "Keep the baseline on this node" only means something for a node where the
+    candidate runs a different model. So only those nodes count as held up or
+    broken. A failure anywhere else surfaced downstream of the swap: a tool node
+    has no model to keep, and a node on the baseline's model is already kept. For
+    those the useful pointer is back at the nodes the candidate did change.
+
+    A candidate that fails nowhere gets no advice, and neither does one with no
+    model calls to point at. Inventing a sentence for either would be the tool
+    talking past its own evidence.
     """
     base = card.baseline
     if base is None:
         return None
+    base_models = {
+        n: c.model for (cid, n), c in cells.items() if cid == base.candidate_id
+    }
     lines: list[str] = []
     for row in card.candidates:
         mine = {n: c for (cid, n), c in cells.items() if cid == row.candidate_id}
-        clean = sorted(n for n, c in mine.items() if c.calls and not c.failures)
-        broken = sorted(n for n, c in mine.items() if c.failures)
-        if not clean or not broken:
-            continue
-        lines.append(
-            f"{row.candidate_id} held up on {', '.join(clean)} and broke in "
-            f"{', '.join(broken)} {arrow} keep {base.candidate_id} on "
-            f"{', '.join(broken)}"
+        swapped = sorted(
+            n for n, c in mine.items() if c.calls and c.model != base_models.get(n)
         )
+        clean = [n for n in swapped if not mine[n].failures]
+        broken = [n for n in swapped if mine[n].failures]
+        downstream = sorted(
+            n for n, c in mine.items() if c.failures and n not in swapped
+        )
+        if clean and broken:
+            lines.append(
+                f"{row.candidate_id} held up on {', '.join(clean)} and broke in "
+                f"{', '.join(broken)} {arrow} keep {base.candidate_id} on "
+                f"{', '.join(broken)}"
+            )
+        if swapped and downstream:
+            lines.append(
+                f"{row.candidate_id} failed in {', '.join(downstream)}, which it "
+                f"did not change {arrow} look at what it did change: "
+                f"{', '.join(swapped)}"
+            )
     if not lines:
         return None
     out = Text()

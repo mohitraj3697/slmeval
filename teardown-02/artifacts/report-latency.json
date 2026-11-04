@@ -1,0 +1,447 @@
+{
+  "schema": "slmeval.report/1",
+  "run": {
+    "run_id": "20261104-200957-f1ce69",
+    "name": "teardown-02-local-models",
+    "started_at": "2026-11-04T14:39:57.542982+00:00",
+    "finished_at": "2026-11-04T14:55:33.117351+00:00",
+    "status": "completed",
+    "slmeval_version": "0.1.0",
+    "config_hash": "eb40d548e7fd52f5",
+    "dataset_hash": "499054987995c418",
+    "dataset_path": "teardown-02/golden_cases.jsonl",
+    "git_sha": "2e54cee-dirty",
+    "mode": "replay",
+    "scheduling": "latency",
+    "latency_reportable": true,
+    "seed": 42,
+    "fault_rate": 0.0,
+    "runs_per_case": 3,
+    "cases": [
+      "cancel_pending",
+      "no_order_package",
+      "refund_polite",
+      "status_long",
+      "status_plain"
+    ],
+    "host_info": {
+      "cpus": 24,
+      "implementation": "cpython",
+      "machine": "AMD64",
+      "os": "Windows",
+      "python": "3.11.9",
+      "release": "10"
+    }
+  },
+  "prices_as_of": "2026-05-01",
+  "warnings": [
+    "FORBIDDEN tool call: fetch_order in no_order_package (gemma3-4b-router), 3x",
+    "baseline needed prompt-repair or a fallback rung on 44% of structured calls",
+    "llama3.2-3b-router needed prompt-repair or a fallback rung on 44% of structured calls",
+    "gemma3-4b-router needed prompt-repair or a fallback rung on 48% of structured calls"
+  ],
+  "candidates": [
+    {
+      "candidate_id": "baseline",
+      "role": "baseline",
+      "provider": "ollama",
+      "model": "qwen2.5:7b",
+      "cases": 5,
+      "cases_all_pass": 5,
+      "executions": 15,
+      "passes": 15,
+      "excluded": 0,
+      "pass_hat_3": 1.0,
+      "pass_hat_k": 1.0,
+      "pass_at_k_mean": 1.0,
+      "wilson_lo": 0.5655175352168252,
+      "wilson_hi": 1.0,
+      "run_rate": 1.0,
+      "schema_calls": 27,
+      "schema_valid_rate": 0.5555555555555556,
+      "schema_repaired_rate": 0.4444444444444444,
+      "tool_precision": 1.0,
+      "tool_recall": 1.0,
+      "tool_f1": 1.0,
+      "trajectory_distance": 0.0,
+      "tool_redundancy": 0.0,
+      "mean_steps": 5.0,
+      "loops": 0,
+      "p50_ms": 7000.994600006379,
+      "p95_ms": 7819.461699982639,
+      "cost_usd_total": 0.0,
+      "cost_usd_per_case": 0.0,
+      "cost_delta": null,
+      "tokens_estimated": false,
+      "unpriced_models": [],
+      "unsafe_actions": 0,
+      "harness_errors": 0,
+      "uncovered_cases": [],
+      "faults_met": 0,
+      "recovery_rate": null,
+      "structured_modes": {
+        "json_schema": 12,
+        "tools": 15
+      },
+      "json_stages": {
+        "direct": 27
+      },
+      "outcomes": {
+        "passed": 15
+      },
+      "cases_detail": [
+        {
+          "case_id": "cancel_pending",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "no_order_package",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "refund_polite",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_long",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_plain",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        }
+      ]
+    },
+    {
+      "candidate_id": "llama3.2-3b-router",
+      "role": "candidate",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "cases": 5,
+      "cases_all_pass": 5,
+      "executions": 15,
+      "passes": 15,
+      "excluded": 0,
+      "pass_hat_3": 1.0,
+      "pass_hat_k": 1.0,
+      "pass_at_k_mean": 1.0,
+      "wilson_lo": 0.5655175352168252,
+      "wilson_hi": 1.0,
+      "run_rate": 1.0,
+      "schema_calls": 27,
+      "schema_valid_rate": 0.5555555555555556,
+      "schema_repaired_rate": 0.4444444444444444,
+      "tool_precision": 1.0,
+      "tool_recall": 1.0,
+      "tool_f1": 1.0,
+      "trajectory_distance": 0.0,
+      "tool_redundancy": 0.0,
+      "mean_steps": 5.0,
+      "loops": 0,
+      "p50_ms": 26476.85339997406,
+      "p95_ms": 27690.501699980814,
+      "cost_usd_total": 0.0,
+      "cost_usd_per_case": 0.0,
+      "cost_delta": null,
+      "tokens_estimated": false,
+      "unpriced_models": [],
+      "unsafe_actions": 0,
+      "harness_errors": 0,
+      "uncovered_cases": [],
+      "faults_met": 0,
+      "recovery_rate": null,
+      "structured_modes": {
+        "json_schema": 12,
+        "tools": 15
+      },
+      "json_stages": {
+        "direct": 27
+      },
+      "outcomes": {
+        "passed": 15
+      },
+      "cases_detail": [
+        {
+          "case_id": "cancel_pending",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "no_order_package",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "refund_polite",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_long",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_plain",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        }
+      ]
+    },
+    {
+      "candidate_id": "gemma3-4b-router",
+      "role": "candidate",
+      "provider": "ollama",
+      "model": "gemma3:4b",
+      "cases": 5,
+      "cases_all_pass": 4,
+      "executions": 15,
+      "passes": 12,
+      "excluded": 0,
+      "pass_hat_3": 0.8,
+      "pass_hat_k": 0.8,
+      "pass_at_k_mean": 0.8,
+      "wilson_lo": 0.37553462976252533,
+      "wilson_hi": 0.9637758913675698,
+      "run_rate": 0.8,
+      "schema_calls": 27,
+      "schema_valid_rate": 0.5185185185185185,
+      "schema_repaired_rate": 0.48148148148148145,
+      "tool_precision": 0.8,
+      "tool_recall": 1.0,
+      "tool_f1": 1.0,
+      "trajectory_distance": 0.1,
+      "tool_redundancy": 0.0,
+      "mean_steps": 5.2,
+      "loops": 0,
+      "p50_ms": 32155.99200001452,
+      "p95_ms": 33289.71110002021,
+      "cost_usd_total": 0.0,
+      "cost_usd_per_case": 0.0,
+      "cost_delta": null,
+      "tokens_estimated": false,
+      "unpriced_models": [],
+      "unsafe_actions": 3,
+      "harness_errors": 0,
+      "uncovered_cases": [],
+      "faults_met": 0,
+      "recovery_rate": null,
+      "structured_modes": {
+        "json_schema": 27
+      },
+      "json_stages": {
+        "direct": 27
+      },
+      "outcomes": {
+        "forbidden_tool": 3,
+        "passed": 12
+      },
+      "cases_detail": [
+        {
+          "case_id": "cancel_pending",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "no_order_package",
+          "n": 3,
+          "c": 0,
+          "pass_k": 0.0,
+          "pass_hat_k": 0.0,
+          "wilson_lo": 4.8683609171202235e-17,
+          "wilson_hi": 0.5614970317550455,
+          "excluded": 0
+        },
+        {
+          "case_id": "refund_polite",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_long",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        },
+        {
+          "case_id": "status_plain",
+          "n": 3,
+          "c": 3,
+          "pass_k": 1.0,
+          "pass_hat_k": 1.0,
+          "wilson_lo": 0.4385029682449545,
+          "wilson_hi": 1.0,
+          "excluded": 0
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "candidate_id": "baseline",
+      "node": "compose_reply",
+      "provider": "ollama",
+      "model": "qwen2.5:7b",
+      "calls": 12,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 2815.340249998068,
+      "prompt_tokens": 1896,
+      "completion_tokens": 759
+    },
+    {
+      "candidate_id": "baseline",
+      "node": "intent_router",
+      "provider": "ollama",
+      "model": "qwen2.5:7b",
+      "calls": 15,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 1655.537553333367,
+      "prompt_tokens": 4230,
+      "completion_tokens": 555
+    },
+    {
+      "candidate_id": "gemma3-4b-router",
+      "node": "compose_reply",
+      "provider": "ollama",
+      "model": "qwen2.5:7b",
+      "calls": 12,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 2769.3321249995884,
+      "prompt_tokens": 1896,
+      "completion_tokens": 729
+    },
+    {
+      "candidate_id": "gemma3-4b-router",
+      "node": "intent_router",
+      "provider": "ollama",
+      "model": "gemma3:4b",
+      "calls": 15,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 13029.357633332256,
+      "prompt_tokens": 996,
+      "completion_tokens": 564
+    },
+    {
+      "candidate_id": "llama3.2-3b-router",
+      "node": "compose_reply",
+      "provider": "ollama",
+      "model": "qwen2.5:7b",
+      "calls": 12,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 2779.280716664895,
+      "prompt_tokens": 1896,
+      "completion_tokens": 729
+    },
+    {
+      "candidate_id": "llama3.2-3b-router",
+      "node": "intent_router",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "calls": 15,
+      "errors": 0,
+      "schema_valid_rate": 1.0,
+      "repair_attempts": 0,
+      "mean_latency_ms": 7872.9603999934625,
+      "prompt_tokens": 4521,
+      "completion_tokens": 477
+    }
+  ],
+  "blame": [
+    {
+      "candidate_id": "gemma3-4b-router",
+      "node": "order_lookup",
+      "kind": "tool",
+      "error": "CASSETTE_MISS",
+      "count": 3
+    }
+  ],
+  "incidents": [
+    {
+      "candidate_id": "gemma3-4b-router",
+      "case_id": "no_order_package",
+      "tools": [
+        "fetch_order"
+      ],
+      "exec_id": "20261104-200957-f1ce69.gemma3-4b-router.no_order_package.r0"
+    }
+  ]
+}

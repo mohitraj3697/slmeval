@@ -48,7 +48,9 @@ async def fetch_order(order_id: str, request_id: str = "") -> erp.Order:
     the point: the agent gets the same three types back on replay.
     """
     try:
-        return erp.ORDERS[order_id]
+        # Customers and models both write `ord-9921`. The real system's lookup
+        # has to accept what the cassette key above already treats as the same id.
+        return erp.ORDERS[order_id.strip().upper()]
     except KeyError:
         raise erp.UnknownOrder(order_id) from None
 
@@ -69,7 +71,7 @@ async def fetch_customer(customer_id: str) -> dict[str, Any]:
 async def fetch_tracking(order_id: str) -> dict[str, Any]:
     """Pretend this is the carrier's API."""
     try:
-        return dict(erp.TRACKING[order_id])
+        return dict(erp.TRACKING[order_id.strip().upper()])
     except KeyError:
         raise erp.UnknownOrder(order_id) from None
 

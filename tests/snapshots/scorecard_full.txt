@@ -6,8 +6,8 @@ excluded from pass rates rather than counted against the candidate; re-run `slme
   !! fenced-json needed json_mode on 100% of structured calls
   !! fenced-json needed prompt-repair or a fallback rung on 100% of structured calls
   !! some token counts were estimated, not reported by the provider - figures built from them are marked ~
-  -- latency not measured in this mode - requests ran concurrently, so a p95 would describe the scheduler
-rather than the model (re-run with --serial-latency)
+  -- latency not measured in throughput mode - a p95 here would describe the scheduler rather than the model
+(re-run with --serial-latency)
 
 Candidate        pass^2         95% CI    runs    Schema    Tool F1    Steps      $/case    d Cost
 baseline         100.0%    [34%, 100%]     4/4      100%       1.00      3.0    ~$0.0000         -
@@ -21,7 +21,7 @@ intent_router        4 ok           4 ok             4 ok      8 fail/4
 order_lookup            -              -           2 fail             -
 compose_reply        4 ok           2 ok                -             -
 
-  sloppy-router held up on intent_router and broke in order_lookup -> keep baseline on order_lookup
+  sloppy-router failed in order_lookup, which it did not change -> look at what it did change: intent_router
 
   pass^2 = fraction of cases passing every repeat; 95% CI is the Wilson interval on that fraction
   gate on the lower bound, never the point estimate (n=2 cases)

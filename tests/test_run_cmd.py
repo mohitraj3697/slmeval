@@ -44,6 +44,8 @@ async def lookup(intent: str) -> dict:
 
 
 async def run_case(case_input: dict) -> dict:
+    if case_input.get("q") == "boom":
+        raise RuntimeError("boom")
     with node("router"):
         completion = await chat_model().complete(
             [{"role": "user", "content": str(case_input.get("q", ""))}],
@@ -143,15 +145,29 @@ def test_a_case_that_cannot_be_recorded_exits_with_a_coverage_error(
     """No coverage means every candidate will miss on that case and read as a
     model failure. Better to say so than let it happen quietly."""
     (demo / "cases.jsonl").write_text(
-        CASES
-        + '{"case_id": "boom", "input": {"q": "boom"}, '
-        '"assert": {"state_contains": {"intent": "never"}}}\n',
+        CASES + '{"case_id": "boom", "input": {"q": "boom"}, "assert": {}}\n',
         encoding="utf-8",
     )
     result = invoke("record")
     assert result.exit_code == exit_codes.COVERAGE
-    assert "were not recorded" in text_of(result)
+    assert "were not fully recorded" in text_of(result)
     assert "boom" in text_of(result)
+
+
+def test_a_case_the_baseline_fails_is_still_recorded(demo: Path) -> None:
+    """The agent ran to the end, so nothing is missing. Calling that a coverage
+    gap would be false, and would stop a benchmark that can run."""
+    (demo / "cases.jsonl").write_text(
+        CASES
+        + '{"case_id": "strict", "input": {"q": "strict"}, '
+        '"assert": {"state_contains": {"intent": "never"}}}\n',
+        encoding="utf-8",
+    )
+    result = invoke("record")
+    assert result.exit_code == exit_codes.OK
+    assert "strict" in text_of(result)
+    assert "the baseline failed them" in text_of(result).replace("\n", " ")
+    assert "not fully recorded" not in text_of(result)
 
 
 # --------------------------------------------------------------------------- #

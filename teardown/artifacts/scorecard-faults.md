@@ -4,13 +4,13 @@ $ slmeval report --format md
 
 ### teardown-01-support-agent
 
-`20261104-150922-55f75e` · 4 cases x 3 runs · replay · seed 42 · dataset `04017f688c30edda`
+`20261104-203253-6b5d8f` · 4 cases x 3 runs · replay · seed 42 · dataset `04017f688c30edda`
 
 - **3 execution(s) across 1 candidate/case pair(s) explored paths the cassettes do not cover (refund_needs_confirmation) - excluded from pass rates rather than counted against the candidate; re-run `slmeval record --fill-gaps`**
 - **fenced-json needed json_mode on 100% of structured calls**
 - **fenced-json needed prompt-repair or a fallback rung on 100% of structured calls**
 - **some token counts were estimated, not reported by the provider - figures built from them are marked ~**
-- **latency not measured in this mode - requests ran concurrently, so a p95 would describe the scheduler rather than the model (re-run with --serial-latency)**
+- **latency not measured in throughput mode - a p95 here would describe the scheduler rather than the model (re-run with --serial-latency)**
 
 | Candidate | pass^3 | 95% CI | runs | Schema | Tool F1 | Steps | $/case | ΔCost |
 |---|---|---|---|---|---|---|---|---|

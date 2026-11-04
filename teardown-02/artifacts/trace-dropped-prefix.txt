@@ -1,0 +1,62 @@
+
+  20261104-185157-bed769.gemma3-4b-router.status_delivered.r0
+  gemma3-4b-router · status_delivered · repeat 0 · cassette_miss · error · 2 steps · 7,419 ms
+  ✗ CassetteMiss: ✗ status_delivered · gemma3-4b-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "7310", "request_id": "req-7310"}
+  nearest recorded: {"order_id": "ORD-7310", "request_id": "req-ORD-7310"}
+  diff: order_id: "ORD-7310" → "7310"   (dropped prefix)
+        request_id: "req-ORD-7310" → "req-7310"   (different value)
+  verdict: hallucinated_parameter
+  → order_id differs from the nearest recorded call in a way that corrupts it (dropped prefix), which is a 
+model error rather than a new path
+
+  trajectory
+    intent_router → order_lookup
+
+model calls                                                              
+#    node             schema    mode           repairs    json         ms
+0    intent_router    valid     json_schema          —    direct    7,410
+
+tool calls                                                                                               
+#    tool                                                        outcome    tier    fault    node        
+0    fetch_order({"order_id":"7310","request_id":"req-7310"})    miss       —       —        order_lookup
+
+✗ status_delivered · gemma3-4b-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "7310", "request_id": "req-7310"}
+  nearest recorded: {"order_id": "ORD-7310", "request_id": "req-ORD-7310"}
+  diff: order_id: "ORD-7310" → "7310"   (dropped prefix)
+        request_id: "req-ORD-7310" → "req-7310"   (different value)
+  verdict: hallucinated_parameter
+  → order_id differs from the nearest recorded call in a way that corrupts it (dropped prefix), which is a 
+model error rather than a new path
+
+metrics                                                                                                       
+tier    metric                     value    detail                                                            
+   1    arg_checks                     2                                                                      
+   1    arg_type_valid                 1                                                                      
+   1    assertions_passed              0    state_contains at intent: the agent never set this key;           
+                                            state_conta...                                                    
+   1    cassette_degraded_rate         0                                                                      
+   1    cassette_misses                1                                                                      
+   1    extra_args_hallucinated        0                                                                      
+   1    json_extraction_stage          —    direct                                                            
+   1    repair_attempts                0                                                                      
+   1    required_args_present          1                                                                      
+   1    schema_calls                   1                                                                      
+   1    schema_failure_rate            0                                                                      
+   1    schema_repaired_rate           0                                                                      
+   1    schema_valid_rate              1                                                                      
+   1    structured_mode_used           —    json_schema                                                       
+   1    tool_calls                     1                                                                      
+   1    tool_name_valid                1                                                                      
+   2    step_delta                    -4                                                                      
+   2    steps                          2                                                                      
+   2    tool_f1                      0.4                                                                      
+   2    tool_overlap                   —    missing: check_refund_policy, fetch_customer, fetch_tracking      
+   2    tool_precision                 1                                                                      
+   2    tool_recall                 0.25                                                                      
+   2    tool_redundancy                0                                                                      
+   2    trajectory_distance          0.5    - policy_check -> (missing), - compose_reply -> (missing)         
+

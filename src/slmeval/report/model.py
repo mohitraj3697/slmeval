@@ -49,9 +49,8 @@ from slmeval.storage.models import (
 )
 
 LATENCY_DISCLAIMER: Final = (
-    "latency not measured in this mode - requests ran concurrently, so a p95 "
-    "would describe the scheduler rather than the model (re-run with "
-    "--serial-latency)"
+    "latency not measured in throughput mode - a p95 here would describe the "
+    "scheduler rather than the model (re-run with --serial-latency)"
 )
 
 

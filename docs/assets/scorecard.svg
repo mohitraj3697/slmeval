@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 1287 586.8" xmlns="http://www.w3.org/2000/svg"><title>Output of slmeval report, shortened</title>
+<svg class="rich-terminal" viewBox="0 0 1287 611.1999999999999" xmlns="http://www.w3.org/2000/svg"><title>Output of slmeval report, shortened</title>
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -45,7 +45,7 @@
 
     <defs>
     <clipPath id="scorecard-clip-terminal">
-      <rect x="0" y="0" width="1267.8" height="535.8" />
+      <rect x="0" y="0" width="1267.8" height="560.1999999999999" />
     </clipPath>
     <clipPath id="scorecard-line-0">
     <rect x="0" y="1.5" width="1268.8" height="24.65"/>
@@ -110,9 +110,12 @@
 <clipPath id="scorecard-line-20">
     <rect x="0" y="489.5" width="1268.8" height="24.65"/>
             </clipPath>
+<clipPath id="scorecard-line-21">
+    <rect x="0" y="513.9" width="1268.8" height="24.65"/>
+            </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1285" height="584.8" rx="8"/><text class="scorecard-title" fill="#c5c8c6" text-anchor="middle" x="642" y="27">slmeval&#160;report</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1285" height="609.2" rx="8"/><text class="scorecard-title" fill="#c5c8c6" text-anchor="middle" x="642" y="27">slmeval&#160;report</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
@@ -141,9 +144,10 @@
 </text><text class="scorecard-r1" x="0" y="410.4" textLength="207.4" clip-path="url(#scorecard-line-16)">compose_reply&#160;&#160;&#160;&#160;</text><text class="scorecard-r8" x="207.4" y="410.4" textLength="97.6" clip-path="url(#scorecard-line-16)">&#160;&#160;&#160;&#160;9&#160;ok</text><text class="scorecard-r3" x="353.8" y="410.4" textLength="158.6" clip-path="url(#scorecard-line-16)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;—</text><text class="scorecard-r8" x="561.2" y="410.4" textLength="134.2" clip-path="url(#scorecard-line-16)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;9&#160;ok</text><text class="scorecard-r8" x="744.2" y="410.4" textLength="146.4" clip-path="url(#scorecard-line-16)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;6&#160;ok</text><text class="scorecard-r1" x="1268.8" y="410.4" textLength="12.2" clip-path="url(#scorecard-line-16)">
 </text><text class="scorecard-r1" x="0" y="434.8" textLength="207.4" clip-path="url(#scorecard-line-17)">intent_router&#160;&#160;&#160;&#160;</text><text class="scorecard-r8" x="207.4" y="434.8" textLength="97.6" clip-path="url(#scorecard-line-17)">&#160;&#160;&#160;12&#160;ok</text><text class="scorecard-r8" x="353.8" y="434.8" textLength="158.6" clip-path="url(#scorecard-line-17)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;12&#160;ok</text><text class="scorecard-r8" x="561.2" y="434.8" textLength="134.2" clip-path="url(#scorecard-line-17)">&#160;&#160;&#160;&#160;&#160;&#160;12&#160;ok</text><text class="scorecard-r8" x="744.2" y="434.8" textLength="146.4" clip-path="url(#scorecard-line-17)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;12&#160;ok</text><text class="scorecard-r1" x="1268.8" y="434.8" textLength="12.2" clip-path="url(#scorecard-line-17)">
 </text><text class="scorecard-r1" x="1268.8" y="459.2" textLength="12.2" clip-path="url(#scorecard-line-18)">
-</text><text class="scorecard-r9" x="0" y="483.6" textLength="1195.6" clip-path="url(#scorecard-line-19)">&#160;&#160;sloppy-router&#160;held&#160;up&#160;on&#160;intent_router&#160;and&#160;broke&#160;in&#160;order_lookup&#160;→&#160;keep&#160;baseline&#160;on&#160;order_lookup</text><text class="scorecard-r1" x="1268.8" y="483.6" textLength="12.2" clip-path="url(#scorecard-line-19)">
-</text><text class="scorecard-r9" x="0" y="508" textLength="1220" clip-path="url(#scorecard-line-20)">&#160;&#160;refund-happy&#160;held&#160;up&#160;on&#160;compose_reply,&#160;intent_router&#160;and&#160;broke&#160;in&#160;policy_check&#160;→&#160;keep&#160;baseline&#160;on&#160;</text><text class="scorecard-r1" x="1268.8" y="508" textLength="12.2" clip-path="url(#scorecard-line-20)">
-</text><text class="scorecard-r9" x="0" y="532.4" textLength="146.4" clip-path="url(#scorecard-line-21)">policy_check</text><text class="scorecard-r1" x="1268.8" y="532.4" textLength="12.2" clip-path="url(#scorecard-line-21)">
+</text><text class="scorecard-r9" x="0" y="483.6" textLength="1146.8" clip-path="url(#scorecard-line-19)">&#160;&#160;sloppy-router&#160;failed&#160;in&#160;order_lookup,&#160;which&#160;it&#160;did&#160;not&#160;change&#160;→&#160;look&#160;at&#160;what&#160;it&#160;did&#160;change:&#160;</text><text class="scorecard-r1" x="1268.8" y="483.6" textLength="12.2" clip-path="url(#scorecard-line-19)">
+</text><text class="scorecard-r9" x="0" y="508" textLength="158.6" clip-path="url(#scorecard-line-20)">intent_router</text><text class="scorecard-r1" x="1268.8" y="508" textLength="12.2" clip-path="url(#scorecard-line-20)">
+</text><text class="scorecard-r9" x="0" y="532.4" textLength="1134.6" clip-path="url(#scorecard-line-21)">&#160;&#160;refund-happy&#160;failed&#160;in&#160;policy_check,&#160;which&#160;it&#160;did&#160;not&#160;change&#160;→&#160;look&#160;at&#160;what&#160;it&#160;did&#160;change:&#160;</text><text class="scorecard-r1" x="1268.8" y="532.4" textLength="12.2" clip-path="url(#scorecard-line-21)">
+</text><text class="scorecard-r9" x="0" y="556.8" textLength="341.6" clip-path="url(#scorecard-line-22)">compose_reply,&#160;intent_router</text><text class="scorecard-r1" x="1268.8" y="556.8" textLength="12.2" clip-path="url(#scorecard-line-22)">
 </text>
     </g>
     </g>

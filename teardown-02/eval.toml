@@ -1,0 +1,47 @@
+# Teardown #2: real local models on the example support agent.
+#
+# Everything runs on one laptop through Ollama, with no API key. Start Ollama,
+# pull the three models, then:
+#
+#     slmeval record
+#     slmeval run
+#
+# Real models vary with their version, your hardware and your Ollama build, so
+# your numbers can differ. See README.md.
+
+[benchmark]
+name = "teardown-02-local-models"
+dataset = "./golden_cases.jsonl"
+runs_per_case = 3
+tool_mode = "replay"
+seed = 42
+
+# One at a time: this laptop has 6 GB of VRAM and holds one model at a time.
+concurrency = 1
+
+# A router-only execution swaps models twice, which can take a while.
+timeout_s = 300.0
+max_steps = 12
+
+[target]
+entrypoint = "support_agent:run_case"
+adapter = "generic"
+sys_path = ["../examples"]
+
+# The largest model that fits this GPU. It is not a frontier model, so these
+# results say nothing about replacing one.
+[baseline]
+provider = "ollama"
+model = "qwen2.5:7b"
+
+[[candidates]]
+id = "llama3.2-3b-router"
+provider = "ollama"
+model = "llama3.2:3b"
+target_nodes = ["intent_router"]
+
+[[candidates]]
+id = "gemma3-4b-router"
+provider = "ollama"
+model = "gemma3:4b"
+target_nodes = ["intent_router"]

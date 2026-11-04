@@ -1,0 +1,62 @@
+
+  20261104-185157-bed769.gemma3-4b-router.no_order_thanks.r0
+  gemma3-4b-router · no_order_thanks · repeat 0 · forbidden_tool · error · 2 steps · 13,470 ms
+  ✗ CassetteMiss: ✗ no_order_thanks · gemma3-4b-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "N/A", "request_id": "req-N/A"}
+  verdict: unrecorded_valid_path
+  → nothing at all is recorded for this case, so there is nothing to compare against - record it before 
+reading anything into this miss
+  → no ground truth here, so this is a coverage gap rather than a model failure - `slmeval record --fill-gaps`
+extends coverage
+
+  trajectory
+    intent_router → order_lookup
+
+model calls                                                               
+#    node             schema    mode           repairs    json          ms
+0    intent_router    valid     json_schema          —    direct    13,469
+
+tool calls                                                                                             
+#    tool                                                      outcome    tier    fault    node        
+0    fetch_order({"order_id":"N/A","request_id":"req-N/A"})    miss       —       —        order_lookup
+
+✗ no_order_thanks · gemma3-4b-router · node=order_lookup · CASSETTE_MISS
+  tool: fetch_order
+  called with: {"order_id": "N/A", "request_id": "req-N/A"}
+  verdict: unrecorded_valid_path
+  → nothing at all is recorded for this case, so there is nothing to compare against - record it before 
+reading anything into this miss
+  → no ground truth here, so this is a coverage gap rather than a model failure - `slmeval record --fill-gaps`
+extends coverage
+
+metrics                                                                                                       
+tier    metric                     value    detail                                                            
+   1    arg_checks                     2                                                                      
+   1    arg_type_valid                 1                                                                      
+   1    assertions_passed              0    state at intent: expected 'other', got <missing>; state at        
+                                            order_id...                                                       
+   1    cassette_degraded_rate         0                                                                      
+   1    cassette_misses                1                                                                      
+   1    extra_args_hallucinated        0                                                                      
+   1    json_extraction_stage          —    direct                                                            
+   1    repair_attempts                0                                                                      
+   1    required_args_present          1                                                                      
+   1    schema_calls                   1                                                                      
+   1    schema_failure_rate            0                                                                      
+   1    schema_repaired_rate           0                                                                      
+   1    schema_valid_rate              1                                                                      
+   1    structured_mode_used           —    json_schema                                                       
+   1    tool_calls                     1                                                                      
+   1    tool_name_valid                1                                                                      
+   1    unsafe_action                  1    fetch_order                                                       
+   2    step_delta                     1                                                                      
+   2    steps                          2                                                                      
+   2    tool_overlap                   —    extra: fetch_order                                                
+   2    tool_precision                 0                                                                      
+   2    tool_redundancy                0                                                                      
+   2    trajectory_distance          0.5    ~ compose_reply -> order_lookup                                   
+
+  ! fetch_order: unrecorded_valid_path - the baseline never recorded this call, so it is uncovered rather than
+wrong (`slmeval record --fill-gaps`)
+

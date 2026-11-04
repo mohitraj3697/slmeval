@@ -68,6 +68,38 @@ ORDERS: dict[str, Order] = {
         placed_at=_NOW - timedelta(days=30),
         delivered_at=_NOW - timedelta(days=21),
     ),
+    # Outside the refund window.
+    "ORD-5502": Order(
+        order_id="ORD-5502",
+        customer_id="CUS-52",
+        state=OrderState.DELIVERED,
+        total=Decimal("42.00"),
+        placed_at=_NOW - timedelta(days=50),
+        delivered_at=_NOW - timedelta(days=40),
+    ),
+    # Delivered recently, so a refund is allowed once the customer confirms.
+    "ORD-2048": Order(
+        order_id="ORD-2048",
+        customer_id="CUS-63",
+        state=OrderState.DELIVERED,
+        total=Decimal("310.25"),
+        placed_at=_NOW - timedelta(days=9),
+        delivered_at=_NOW - timedelta(days=3),
+    ),
+    "ORD-1184": Order(
+        order_id="ORD-1184",
+        customer_id="CUS-52",
+        state=OrderState.PENDING,
+        total=Decimal("18.75"),
+        placed_at=_NOW - timedelta(days=1),
+    ),
+    "ORD-3377": Order(
+        order_id="ORD-3377",
+        customer_id="CUS-63",
+        state=OrderState.CANCELLED,
+        total=Decimal("55.10"),
+        placed_at=_NOW - timedelta(days=12),
+    ),
 }
 
 CUSTOMERS: dict[str, dict[str, object]] = {
@@ -76,6 +108,18 @@ CUSTOMERS: dict[str, dict[str, object]] = {
         "tier": "standard",
         "lifetime_value": Decimal("1240.00"),
         "since": _NOW - timedelta(days=900),
+    },
+    "CUS-52": {
+        "customer_id": "CUS-52",
+        "tier": "standard",
+        "lifetime_value": Decimal("96.40"),
+        "since": _NOW - timedelta(days=120),
+    },
+    "CUS-63": {
+        "customer_id": "CUS-63",
+        "tier": "premium",
+        "lifetime_value": Decimal("4310.00"),
+        "since": _NOW - timedelta(days=1500),
     },
 }
 
@@ -93,6 +137,34 @@ TRACKING: dict[str, dict[str, object]] = {
         "last_scan_at": _NOW - timedelta(days=21),
         "eta": None,
         "checkpoints": ("Leipzig", "Brussels", "Manchester"),
+    },
+    "ORD-5502": {
+        "carrier": "UPS",
+        "status": "delivered",
+        "last_scan_at": _NOW - timedelta(days=40),
+        "eta": None,
+        "checkpoints": ("Cologne", "Leeds"),
+    },
+    "ORD-2048": {
+        "carrier": "UPS",
+        "status": "delivered",
+        "last_scan_at": _NOW - timedelta(days=3),
+        "eta": None,
+        "checkpoints": ("Cologne", "Leeds"),
+    },
+    "ORD-1184": {
+        "carrier": "DHL",
+        "status": "label_created",
+        "last_scan_at": _NOW - timedelta(hours=20),
+        "eta": _NOW + timedelta(days=6),
+        "checkpoints": (),
+    },
+    "ORD-3377": {
+        "carrier": "none",
+        "status": "cancelled",
+        "last_scan_at": _NOW - timedelta(days=11),
+        "eta": None,
+        "checkpoints": (),
     },
 }
 

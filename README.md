@@ -214,8 +214,9 @@ treated as stable.
   scripted `fake` provider for offline runs.
 - **Not built yet:** `slmeval compare`, `slmeval cassette`, a native Anthropic provider
   and time-to-first-token measurement.
-- **No published results for real models yet.** Teardown #1 uses scripted models. If
-  you run it against real ones,
+- **Results for real models are limited so far.** Teardown #1 uses scripted models.
+  [Teardown #2](teardown-02/README.md) runs three local models on one laptop, with a
+  local model as the baseline. If you run your own,
   [share the result](https://github.com/mohitraj3697/slmeval/issues/new?template=benchmark_result.yml).
 
 slmeval sends no telemetry. Its only network traffic is to the model endpoints you

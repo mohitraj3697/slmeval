@@ -22,7 +22,7 @@ import pytest
 from rich.console import Console
 
 from slmeval.eval.pipeline import case_rollups
-from slmeval.report.attribution import node_cells, node_order, recommendation
+from slmeval.report.attribution import NodeCell, node_cells, node_order, recommendation
 from slmeval.report.export import (
     SCHEMA_VERSION,
     to_csv,
@@ -299,12 +299,38 @@ def test_nodes_are_ordered_worst_first_not_busiest_first(unsafe_card) -> None:  
 
 
 def test_the_recommendation_names_the_node_to_keep_on_the_baseline(card) -> None:  # type: ignore[no-untyped-def]
-    """The consulting wedge in one sentence - offered only when the data
-    supports it."""
-    cells = node_cells(card)
-    advice = recommendation(card, cells, "->")
-    if advice is not None:
-        assert "keep baseline on" in str(advice)
+    """A swapped node that fails is the one node this advice can be about."""
+    base = card.baseline.candidate_id
+    other = card.candidates[0].candidate_id
+    cells = {
+        (base, "router"): NodeCell(base, "router", calls=9, model="big"),
+        (base, "policy"): NodeCell(base, "policy", calls=9, model="big"),
+        (other, "router"): NodeCell(other, "router", calls=9, model="small"),
+        (other, "policy"): NodeCell(other, "policy", calls=9, failures=3, model="small"),
+    }
+    advice = str(recommendation(card, cells, "->"))
+    assert "held up on router and broke in policy" in advice
+    assert "keep baseline on policy" in advice
+
+
+def test_a_failure_in_a_tool_node_points_back_at_the_swap(card) -> None:  # type: ignore[no-untyped-def]
+    """A tool node has no model to keep, and a node still on the baseline's
+    model says nothing about the candidate. The router made the bad call and
+    the lookup is where it showed up."""
+    base = card.baseline.candidate_id
+    other = card.candidates[0].candidate_id
+    cells = {
+        (base, "router"): NodeCell(base, "router", calls=9, model="big"),
+        (base, "reply"): NodeCell(base, "reply", calls=9, model="big"),
+        (other, "router"): NodeCell(other, "router", calls=9, model="small"),
+        (other, "reply"): NodeCell(other, "reply", calls=6, model="big"),
+        (other, "lookup"): NodeCell(other, "lookup", failures=3),
+    }
+    advice = str(recommendation(card, cells, "->"))
+    assert "failed in lookup, which it did not change" in advice
+    assert "look at what it did change: router" in advice
+    assert "keep baseline" not in advice
+    assert "held up" not in advice
 
 
 def test_a_candidate_that_fails_nowhere_gets_no_advice(tmp_path: Path) -> None:

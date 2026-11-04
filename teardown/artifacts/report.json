@@ -5,16 +5,16 @@ $ slmeval report --format json
 {
   "schema": "slmeval.report/1",
   "run": {
-    "run_id": "20261104-150903-6e658e",
+    "run_id": "20261104-203241-88f39e",
     "name": "teardown-01-support-agent",
-    "started_at": "2026-11-04T09:39:03.562804+00:00",
-    "finished_at": "2026-11-04T09:39:04.191784+00:00",
+    "started_at": "2026-11-04T15:02:41.612991+00:00",
+    "finished_at": "2026-11-04T15:02:41.914420+00:00",
     "status": "completed",
     "slmeval_version": "0.1.0",
     "config_hash": "9a79ea80e90213ac",
     "dataset_hash": "04017f688c30edda",
     "dataset_path": "examples/support_agent/golden_cases.jsonl",
-    "git_sha": "6f82371",
+    "git_sha": "2e54cee-dirty",
     "mode": "replay",
     "scheduling": "throughput",
     "latency_reportable": false,
@@ -43,7 +43,7 @@ $ slmeval report --format json
     "fenced-json needed json_mode on 100% of structured calls",
     "fenced-json needed prompt-repair or a fallback rung on 100% of structured calls",
     "some token counts were estimated, not reported by the provider - figures built from them are marked ~",
-    "latency not measured in this mode - requests ran concurrently, so a p95 would describe the scheduler rather than the model (re-run with --serial-latency)"
+    "latency not measured in throughput mode - a p95 here would describe the scheduler rather than the model (re-run with --serial-latency)"
   ],
   "candidates": [
     {
@@ -422,8 +422,8 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.014611112419515848,
-      "prompt_tokens": 531,
+      "mean_latency_ms": 0.006711110472679138,
+      "prompt_tokens": 1383,
       "completion_tokens": 243
     },
     {
@@ -435,7 +435,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.014416664877596,
+      "mean_latency_ms": 0.006208334525581449,
       "prompt_tokens": 717,
       "completion_tokens": 276
     },
@@ -448,8 +448,8 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.0013444352791541153,
-      "prompt_tokens": 1212,
+      "mean_latency_ms": 0.0006444396502855751,
+      "prompt_tokens": 2061,
       "completion_tokens": 285
     },
     {
@@ -461,7 +461,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.0013000026228837669,
+      "mean_latency_ms": 0.0007083363016135991,
       "prompt_tokens": 3780,
       "completion_tokens": 387
     },
@@ -474,8 +474,8 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.01410001035158833,
-      "prompt_tokens": 366,
+      "mean_latency_ms": 0.005699999746866524,
+      "prompt_tokens": 930,
       "completion_tokens": 156
     },
     {
@@ -487,7 +487,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.012891670242728045,
+      "mean_latency_ms": 0.007508337148465216,
       "prompt_tokens": 717,
       "completion_tokens": 276
     },
@@ -500,7 +500,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.011858333891723305,
+      "mean_latency_ms": 0.006099997942025463,
       "prompt_tokens": 717,
       "completion_tokens": 273
     }
@@ -528,7 +528,7 @@ $ slmeval report --format json
       "tools": [
         "issue_refund"
       ],
-      "exec_id": "20261104-150903-6e658e.refund-happy.refund_needs_confirmation.r0"
+      "exec_id": "20261104-203241-88f39e.refund-happy.refund_needs_confirmation.r0"
     }
   ]
 }

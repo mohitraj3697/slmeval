@@ -1,0 +1,26 @@
+
+  teardown-02-local-models · 5 cases x 3 runs · replay · no faults · seed 42 · latency
+  20261104-200957-f1ce69 · 2e54cee-dirty · dataset 499054987995c418
+
+  ✗ FORBIDDEN tool call: fetch_order in no_order_package (gemma3-4b-router), 3x
+  ! baseline needed prompt-repair or a fallback rung on 44% of structured calls
+  ! llama3.2-3b-router needed prompt-repair or a fallback rung on 44% of structured calls
+  ! gemma3-4b-router needed prompt-repair or a fallback rung on 48% of structured calls
+
+Candidate             pass^3         95% CI     runs    Schema    Tool …    Steps    p95 …     $/case    Δ Co…
+baseline              100.0%    [57%, 100%]    15/15       56%      1.00      5.0    7,819    $0.0000        —
+llama3.2-3b-router    100.0%    [57%, 100%]    15/15       56%      1.00      5.0    27,6…    $0.0000        —
+gemma3-4b-router       80.0%     [38%, 96%]    12/15       52%      1.00      5.2    33,2…    $0.0000        —
+
+per-node attribution                                               
+Node             baseline    llama3.2-3b-router    gemma3-4b-router
+order_lookup            —                     —              3 fail
+compose_reply       12 ok                 12 ok               12 ok
+intent_router       15 ok                 15 ok               15 ok
+
+  gemma3-4b-router failed in order_lookup, which it did not change → look at what it did change: intent_router
+
+  pass^3 = fraction of cases passing every repeat; 95% CI is the Wilson interval on that fraction
+  gate on the lower bound, never the point estimate (n=5 cases)
+  prices as of 2026-05-01
+

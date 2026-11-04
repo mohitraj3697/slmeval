@@ -134,6 +134,7 @@ async def compose_reply(state: State) -> State:
             order_id=str(state.get("order_id", "")),
             wants_confirmation=bool(state.get("wants_confirmation", False)),
         ),
+        refund_issued=bool(state.get("refund_issued", False)),
     )
     return {**state, "final_answer": answer}
 

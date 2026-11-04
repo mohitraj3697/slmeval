@@ -109,7 +109,15 @@ def record(
             raise typer.Exit(exit_codes.USAGE) from None
 
         stats = project.cassettes.stats()
+        # An agent that ran to the end and failed an assertion made every tool
+        # call, so its cassettes are complete and candidates can replay them.
+        # Only a run that stopped early leaves a hole.
+        finished = {Outcome.FAILED_ASSERTION, Outcome.FORBIDDEN_TOOL}
         failed = [r for r in summary.results if r.outcome is not Outcome.PASSED]
+        incomplete = [
+            r for r in failed if r.outcome not in finished or r.error_message
+        ]
+        baseline_failed = [r for r in failed if r not in incomplete]
         out.print(
             Text(
                 f"  {sym.ok} recorded {stats.cassettes} cassette(s) across "
@@ -124,12 +132,38 @@ def record(
                 style="dim",
             )
         )
-        if failed:
-            # A case that could not be recorded has no coverage, so every
-            # candidate will miss on it and read as a model failure. Exit 4 -
-            # insufficient coverage - rather than letting that happen quietly.
+        if baseline_failed:
             out.print()
-            for result in failed:
+            for result in baseline_failed:
+                out.print(
+                    Text(
+                        f"  {sym.warn} {result.unit.case_id}: {result.outcome.value}",
+                        style="yellow",
+                    )
+                )
+            out.print()
+            out.print(
+                Text(
+                    f"  {len(baseline_failed)} case(s) were recorded, but the baseline "
+                    "failed them. Candidates can replay them, and the report will "
+                    "show the baseline failing.",
+                    style="yellow",
+                )
+            )
+            if any(r.outcome is Outcome.FORBIDDEN_TOOL for r in baseline_failed):
+                out.print(
+                    Text(
+                        "  Recording runs tools for real, so any forbidden tool above "
+                        "really ran. Check what it did.",
+                        style="bold yellow",
+                    )
+                )
+        if incomplete:
+            # A case that stopped early has gaps, so candidates will miss on it
+            # and read as a model failure. Exit 4 - insufficient coverage -
+            # rather than letting that happen quietly.
+            out.print()
+            for result in incomplete:
                 out.print(
                     Text(
                         f"  {sym.fail} {result.unit.case_id}: {result.outcome.value}"
@@ -140,8 +174,8 @@ def record(
             out.print()
             out.print(
                 Text(
-                    f"  {len(failed)} case(s) were not recorded, so candidates will "
-                    "miss on them. Fix those before benchmarking.",
+                    f"  {len(incomplete)} case(s) were not fully recorded, so "
+                    "candidates will miss on them. Fix those before benchmarking.",
                     style="yellow",
                 )
             )
