@@ -39,7 +39,7 @@ jobs:
     name: the action passes a healthy run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: slmeval
         uses: ./examples/github-action
@@ -76,7 +76,7 @@ jobs:
     name: the action fails a regression with exit 1
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: slmeval
         # continue-on-error, not a removed threshold: the action *must* fail
