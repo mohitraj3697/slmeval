@@ -12,6 +12,7 @@ blob store can quietly lose or corrupt data:
 from __future__ import annotations
 
 import os
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -145,6 +146,25 @@ def test_sweep_grace_is_configurable(blobs: BlobStore) -> None:
     fresh = blobs.put(b"orphan")
     result = blobs.sweep(set(), grace=timedelta(0))
     assert result.deleted == 1
+    assert not blobs.exists(fresh)
+
+
+def test_no_grace_does_not_depend_on_file_timestamps(blobs: BlobStore) -> None:
+    """A fresh file's timestamp can land just after the time the sweep reads.
+
+    That failed `test_prune_frees_payloads_nothing_references` intermittently on
+    Windows CI. The timestamp is pushed forward here so the case is not left to
+    chance. A real grace period still spares the file.
+    """
+    fresh = blobs.put(b"orphan")
+    ahead = time.time() + 3600
+    os.utime(blobs.path_for(fresh), (ahead, ahead))
+
+    assert blobs.sweep(set(), grace=timedelta(seconds=1)).kept_recent == 1
+
+    result = blobs.sweep(set(), grace=timedelta(0))
+    assert result.deleted == 1
+    assert result.kept_recent == 0
     assert not blobs.exists(fresh)
 
 

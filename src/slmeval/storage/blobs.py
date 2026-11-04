@@ -250,7 +250,10 @@ class BlobStore:
         the whole store.
         """
         keep = set(referenced)
-        cutoff = datetime.now(UTC) - grace
+        # No grace means nothing is spared for being recent, so the comparison is
+        # skipped. Python's clock ticks every 15.6 ms on Windows before 3.13, and a
+        # file written just now can carry a later timestamp than that clock reads.
+        cutoff = datetime.now(UTC) - grace if grace > timedelta(0) else None
         deleted = 0
         freed = 0
         kept_recent = 0
@@ -264,7 +267,7 @@ class BlobStore:
                 stat = path.stat()
             except OSError:
                 continue
-            if datetime.fromtimestamp(stat.st_mtime, UTC) > cutoff:
+            if cutoff is not None and datetime.fromtimestamp(stat.st_mtime, UTC) > cutoff:
                 kept_recent += 1
                 continue
             if not dry_run:
