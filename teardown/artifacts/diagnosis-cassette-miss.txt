@@ -13,14 +13,14 @@ trajectory
 3    policy_check     -    —            
 4    compose_reply    -    —            
 
-tool calls                                                                                         
-#    baseline                                           sloppy-router                              
-1    fetch_order({"order_id":"ORD-9921","reques    ~    fetch_order({"order_id":"9921","request_id"
-     t_id":"req-ORD-9921"})                             :"req-9921"})                              
-2    fetch_customer({"customer_id":"CUS-41"})      -    —                                          
-3    fetch_tracking({"order_id":"ORD-9921"})       -    —                                          
-4    check_refund_policy({"days_since_delivery"    -    —                                          
-     :null,"order_id":"ORD-9921"})                                                                 
+tool calls                                                                                          
+#    baseline                                           sloppy-router                               
+1    fetch_order({"order_id":"ORD-9921","reques    ~    fetch_order({"order_id":"9921","request_id":
+     t_id":"req-ORD-9921"})                             "req-9921"})                                
+2    fetch_customer({"customer_id":"CUS-41"})      -    —                                           
+3    fetch_tracking({"order_id":"ORD-9921"})       -    —                                           
+4    check_refund_policy({"days_since_delivery"    -    —                                           
+     :null,"order_id":"ORD-9921"})                                                                  
 
 model calls                             
 #    baseline              sloppy-router

@@ -407,7 +407,16 @@ class EvalConfig(StrictModel):
         # measured. Two runs that differ only in their thresholds are perfectly
         # comparable, and hashing them apart would make `compare` refuse a
         # comparison that is entirely valid.
-        exclude: dict[str, Any] = {"benchmark": {"dataset"}, "gate": True}
+        #
+        # `sys_path` decides what gets imported, so it stays in, but in one
+        # spelling: `..\examples` and `../examples` are the same benchmark, and
+        # hashing them apart would have a Linux CI gate refuse a baseline saved
+        # on Windows.
+        exclude: dict[str, Any] = {
+            "benchmark": {"dataset"},
+            "gate": True,
+            "target": {"sys_path"},
+        }
         if not self.judge.enabled:
             # A judge nobody configured measures nothing, so it must not change
             # the hash - otherwise every committed baseline in existence would
@@ -416,5 +425,6 @@ class EvalConfig(StrictModel):
             # pass rate that includes its verdicts is a different measurement.
             exclude["judge"] = True
         payload = self.model_dump(mode="json", exclude=exclude)
+        payload["target"]["sys_path"] = [path.as_posix() for path in self.target.sys_path]
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]

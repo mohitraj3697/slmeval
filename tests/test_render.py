@@ -145,3 +145,15 @@ def test_every_verdict_has_a_style() -> None:
     from slmeval.sandbox.diagnosis import Verdict
 
     assert set(VERDICT_STYLE) == set(Verdict)
+
+
+def test_a_piped_console_has_the_same_width_on_every_platform(monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Rich drops a column on Windows when it finds no console to talk to.
+
+    Published artifacts and snapshots are captured through a pipe, so that one
+    column re-wrapped them and made Windows and Linux disagree.
+    """
+    monkeypatch.setenv("COLUMNS", "100")
+    with (tmp_path / "out.txt").open("w", encoding="utf-8") as piped:
+        monkeypatch.setattr("sys.stdout", piped)
+        assert render.console().width == 100

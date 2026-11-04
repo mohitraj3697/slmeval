@@ -13,16 +13,16 @@ trajectory
 3    policy_check          policy_check 
 4    compose_reply    -    —            
 
-tool calls                                                                                         
-#    baseline                                          refund-happy                                
-1    fetch_order({"order_id":"ORD-7310","reque         fetch_order({"order_id":"ORD-7310","request_
-     st_id":"req-ORD-7310"})                           id":"req-ORD-7310"})                        
-2    fetch_customer({"customer_id":"CUS-41"})          fetch_customer({"customer_id":"CUS-41"})    
-3    fetch_tracking({"order_id":"ORD-7310"})           fetch_tracking({"order_id":"ORD-7310"})     
-4    check_refund_policy({"days_since_delivery         check_refund_policy({"days_since_delivery":2
-     ":21,"order_id":"ORD-7310"})                      1,"order_id":"ORD-7310"})                   
-5    —                                            +    issue_refund({"amount":"129.99","order_id":"
-                                                       ORD-7310","reason":"within...)              
+tool calls                                                                                          
+#    baseline                                           refund-happy                                
+1    fetch_order({"order_id":"ORD-7310","reques         fetch_order({"order_id":"ORD-7310","request_
+     t_id":"req-ORD-7310"})                             id":"req-ORD-7310"})                        
+2    fetch_customer({"customer_id":"CUS-41"})           fetch_customer({"customer_id":"CUS-41"})    
+3    fetch_tracking({"order_id":"ORD-7310"})            fetch_tracking({"order_id":"ORD-7310"})     
+4    check_refund_policy({"days_since_delivery"         check_refund_policy({"days_since_delivery":2
+     :21,"order_id":"ORD-7310"})                        1,"order_id":"ORD-7310"})                   
+5    —                                             +    issue_refund({"amount":"129.99","order_id":"
+                                                        ORD-7310","reason":"within...)              
 
 model calls                             
 #    baseline              refund-happy 
@@ -34,7 +34,7 @@ model calls
   called with: {"amount": "129.99", "order_id": "ORD-7310", "reason": "within the return window"}
   recorded here instead: check_refund_policy, fetch_customer, fetch_order, fetch_tracking
   verdict: wrong_tool_for_step
-  → issue_refund is a real tool, but nothing in this case was recorded for it while 4 other tool(s)
+  → issue_refund is a real tool, but nothing in this case was recorded for it while 4 other tool(s) 
 were
 
   trajectory diverged at step 4: compose_reply → (none); tool call 5: (none) → 

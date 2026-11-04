@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -187,6 +187,23 @@ def _config(**benchmark_overrides: object) -> EvalConfig:
 def test_config_hash_ignores_formatting_and_dataset_path() -> None:
     """The same benchmark checked out at a different path is the same benchmark."""
     assert _config().config_hash() == _config(dataset="elsewhere/d.jsonl").config_hash()
+
+
+def test_config_hash_is_the_same_on_windows_and_linux() -> None:
+    """A baseline saved on one platform has to compare on the other.
+
+    Built with explicit path flavours, so both spellings are exercised on
+    whichever platform this runs on.
+    """
+    base = _config()
+    windows = base.model_copy(
+        update={"target": base.target.model_copy(update={"sys_path": [PureWindowsPath(r"..\lib")]})}
+    )
+    posix = base.model_copy(
+        update={"target": base.target.model_copy(update={"sys_path": [PurePosixPath("../lib")]})}
+    )
+    assert windows.config_hash() == posix.config_hash()
+    assert posix.config_hash() != base.config_hash()
 
 
 def test_config_hash_changes_with_a_setting_that_affects_results() -> None:

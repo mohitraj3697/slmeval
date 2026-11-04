@@ -16,6 +16,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
 
 from rich.console import Console
 from rich.table import Table
@@ -103,15 +104,30 @@ def console(*, stderr: bool = False, ascii_mode: bool | None = None) -> Console:
     Rich already honours NO_COLOR and non-tty detection; the explicit
     ``no_color`` keeps behaviour identical when a caller hands us a recording
     console in tests.
+
+    ``legacy_windows`` is switched off for a pipe or a file. Rich detects a
+    legacy console on Windows when there is no console at all, then renders one
+    column narrower, so the same report would wrap differently on Windows and
+    Linux at the same ``COLUMNS``.
     """
-    make_encoding_safe(sys.stderr if stderr else sys.stdout)
+    stream = sys.stderr if stderr else sys.stdout
+    make_encoding_safe(stream)
     return Console(
         stderr=stderr,
+        legacy_windows=None if _is_terminal(stream) else False,
         no_color=bool(os.environ.get("NO_COLOR")),
         soft_wrap=False,
         highlight=False,
         emoji=False,
     )
+
+
+def _is_terminal(stream: TextIO) -> bool:
+    # A detached stream can be None or closed, and neither is a terminal.
+    try:
+        return stream.isatty()
+    except (AttributeError, ValueError):
+        return False
 
 
 def status_cell(status: Status, sym: Symbols) -> Text:
