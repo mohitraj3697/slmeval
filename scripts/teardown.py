@@ -182,7 +182,9 @@ VOLATILE: tuple[tuple[str, str], ...] = (
     (r"\d{8}-\d{6}-[0-9a-f]{6}", "<run-id>"),
     (r"\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00", "<timestamp>"),
     (r'("git_sha": ")[^"]*', r"\1<git-sha>"),
-    (r"\b[0-9a-f]{7,40}-dirty\b", "<git-sha>"),
+    # Clean or dirty: the stamp changes with every commit, so leaving a clean one
+    # unmasked would fail this check on all of them.
+    (r"(?m)(· )[0-9a-f]{7,40}(?:-dirty)?(?= ·|\s*$)", r"\1<git-sha>"),
     (r'("[a-z0-9_]*_ms": )(?:[\d.]+|null)', r"\1<ms>"),
     (r"(\s)\d+(?:\.\d+)?(\s*ms\b)", r"\1<ms>\2"),
     (r'("(?:cpus|machine|os|release|python|implementation)": )("?[^",}]*"?)', r"\1<host>"),

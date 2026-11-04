@@ -3,7 +3,7 @@
 **What this is:** the first end-to-end run of `slmeval` against the agent this
 repository ships, published with every artifact it produced and the exact
 config that produced them. Four models, four cases, three repeats, no network,
-no API key, no GPU. The whole matrix completes in **0.23 s** of wall clock,
+no API key, no GPU. The whole matrix completes in **about a quarter of a second**,
 because every tool call is replayed from a cassette recorded once.
 
 **What this is not:** a measurement of any real small language model. The four

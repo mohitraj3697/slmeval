@@ -152,6 +152,26 @@ def test_no_artifact_carries_an_absolute_path_from_whoever_ran_it() -> None:
         assert found is None, f"{artifact.name} carries an absolute path: {found.group()!r}"
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "  20261103-000830-265067 · {sha} · dataset 23cb279bf923fab6",
+        "  dataset 23cb279bf923fab6 · config dc8b35b36fac8263 · {sha}",
+    ],
+)
+def test_the_check_ignores_which_commit_ran_but_not_the_hashes(line: str) -> None:
+    """A commit stamp changes on every commit, clean or dirty.
+
+    Masking only `-dirty` stamps made `--check` pass on a working tree and fail
+    on every commit after it. The dataset and config hashes stay visible: those
+    moving is a real change to the experiment.
+    """
+    stable = generator()._stable
+    assert stable(line.format(sha="0465e84")) == stable(line.format(sha="b144d92"))
+    assert stable(line.format(sha="0465e84")) == stable(line.format(sha="e9eec82-dirty"))
+    assert "23cb279bf923fab6" in stable(line.format(sha="0465e84"))
+
+
 def test_the_json_report_is_the_versioned_schema() -> None:
     raw = (ARTIFACTS / "report.json").read_text(encoding="utf-8")
     payload = json.loads(raw[raw.index("{") :])
