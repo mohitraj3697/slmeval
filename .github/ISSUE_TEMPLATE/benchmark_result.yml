@@ -1,0 +1,38 @@
+name: Benchmark result
+description: Share results from running slmeval on real models.
+labels: [benchmark-result]
+body:
+  - type: markdown
+    attributes:
+      value: Please remove anything private first. Cassettes and traces can contain real data.
+  - type: input
+    id: models
+    attributes:
+      label: Models and how they were served
+      placeholder: gemma3:4b on Ollama, baseline gpt-4o-mini
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Output of `slmeval report --format md`
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Your eval.toml
+      render: toml
+    validations:
+      required: true
+  - type: input
+    id: dataset
+    attributes:
+      label: Dataset
+      description: A link, or how many cases and what kind if it can't be shared.
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware, if you measured latency

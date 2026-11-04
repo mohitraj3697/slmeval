@@ -172,6 +172,16 @@ def test_the_check_ignores_which_commit_ran_but_not_the_hashes(line: str) -> Non
     assert "23cb279bf923fab6" in stable(line.format(sha="0465e84"))
 
 
+def test_the_check_ignores_model_call_timings() -> None:
+    """The `ms` column has no unit beside it, and a loaded runner prints 13 for 0."""
+    stable = generator()._stable
+    quiet = "0    intent_router    valid     tools          -    direct     0"
+    busy = "0    intent_router    valid     tools          -    direct    13"
+    assert stable(quiet) == stable(busy)
+    # A real change on the same row still shows.
+    assert stable(quiet) != stable(busy.replace("tools", "json_mode"))
+
+
 def test_the_json_report_is_the_versioned_schema() -> None:
     raw = (ARTIFACTS / "report.json").read_text(encoding="utf-8")
     payload = json.loads(raw[raw.index("{") :])
@@ -213,31 +223,22 @@ def test_the_writeups_table_agrees_with_the_scorecard(writeup: str, scorecard: s
         )
 
 
-def test_the_main_readmes_headline_table_agrees_with_the_scorecard(scorecard: str) -> None:
-    """The first numbers a stranger reads, and they used to be invented.
-
-    Each candidate's pass rate, interval and runs have to sit on that
-    candidate's line of the README's first text block, and the block has to be
-    followed by the statement that these models are scripted.
-    """
+def test_the_main_readmes_table_agrees_with_the_scorecard(scorecard: str) -> None:
+    """The first numbers a reader sees should be the ones the tool produced."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    start = readme.index("```text") + len("```text")
-    end = readme.index("```", start)
-    headline = readme[start:end].splitlines()
-
-    rows = [
-        [cell.strip().strip("*") for cell in line.split("|")[1:5]]
-        for line in scorecard.splitlines()
-        if line.startswith("| ") and not line.startswith("| Candidate")
-    ]
+    table = {
+        cells[1].strip("* "): [c.strip() for c in cells[2:8]]
+        for cells in (line.split("|") for line in readme.splitlines() if line.startswith("| "))
+        if len(cells) > 8
+    }
+    rows = {
+        cells[1].strip("* "): [c.strip() for c in cells[2:8]]
+        for cells in (line.split("|") for line in scorecard.splitlines() if line.startswith("| "))
+        if len(cells) > 8 and cells[1].strip() != "Candidate"
+    }
     assert len(rows) == 4, rows
-    for candidate_id, pass_rate, interval, runs in rows:
-        line = next((text for text in headline if text.startswith(candidate_id)), None)
-        assert line is not None, f"{candidate_id} is not in the README's headline table"
-        for cell in (pass_rate, interval, runs):
-            assert cell in line, f"{candidate_id}: {cell} is not in {line!r}"
-
-    assert "scripted stand-ins, not real SLMs" in " ".join(readme[end:].split())
+    for candidate_id, cells in rows.items():
+        assert table.get(candidate_id) == cells, candidate_id
 
 
 #: Each finding in the write-up, and the string in the artifact that is its
@@ -249,6 +250,7 @@ FINDINGS: tuple[tuple[str, str], ...] = (
     ("uncovered.txt", "unrecorded_valid_path"),
     ("trace-forbidden-refund.txt", "issue_refund"),
     ("scorecard.md", "FORBIDDEN tool call: issue_refund"),
+    ("scorecard.md", "json_mode on 100%"),
     ("scorecard.md", "prompt-repair or a fallback rung on 100%"),
     ("gate.txt", "GATE FAILED"),
     ("gate.txt", "forbidden_tools"),

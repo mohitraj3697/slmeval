@@ -164,12 +164,28 @@ def _clean(token: str) -> str:
 README = ROOT / "README.md"
 EXAMPLE_README = ROOT / "examples" / "support_agent" / "README.md"
 JUDGE_README = ROOT / "examples" / "judge" / "README.md"
+GUIDES = sorted((ROOT / "docs").glob("*.md"))
+CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+RELEASING = ROOT / "RELEASING.md"
+TEARDOWN_README = ROOT / "teardown" / "README.md"
 
-FILES = [ACTION, WORKFLOW, ACTION_README, DEMO, README, EXAMPLE_README, JUDGE_README]
+FILES = [
+    ACTION,
+    WORKFLOW,
+    ACTION_README,
+    DEMO,
+    README,
+    EXAMPLE_README,
+    JUDGE_README,
+    CONTRIBUTING,
+    RELEASING,
+    TEARDOWN_README,
+    *GUIDES,
+]
 
 #: The files whose whole job is to show commands. One of these going empty
 #: means the extraction broke, not that the docs got shorter.
-DOCUMENTS_COMMANDS = [ACTION, ACTION_README, README, EXAMPLE_README, JUDGE_README]
+DOCUMENTS_COMMANDS = [ACTION, ACTION_README, README, EXAMPLE_README, JUDGE_README, TEARDOWN_README]
 
 
 def command_lines(path: Path) -> list[list[str]]:

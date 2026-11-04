@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="306" viewBox="0 0 860 306" role="img">
+<title>Pass rate with and without injected tool failures</title>
+<desc>baseline: 100% without faults, 50% with faults; sloppy-router: 33% without faults, 33% with faults; fenced-json: 100% without faults, 50% with faults; refund-happy: 75% without faults, 50% with faults</desc>
+<style>
+text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size: 13px; fill: #0b0b0b; }
+.mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace; font-size: 12.5px; }
+.title { font-size: 15px; font-weight: 600; }
+.sub { fill: #52514e; }
+.muted { fill: #6f6d68; font-size: 12px; }
+.card { fill: #fcfcfb; stroke: #e1e0d9; }
+.grid { stroke: #e1e0d9; stroke-width: 1; }
+.axis { stroke: #c3c2b7; stroke-width: 1; }
+.floor { stroke: #52514e; stroke-width: 1.5; }
+.ring { stroke: #fcfcfb; stroke-width: 2; }
+.s1 { fill: #2a78d6; }
+.s2 { fill: #eb6834; }
+.line1 { stroke: #2a78d6; stroke-width: 2; stroke-linecap: round; }
+.link { stroke: #898781; stroke-width: 2; stroke-linecap: round; }
+.good { fill: #0a860a; }
+.bad { fill: #d03b3b; }
+.on-bad { fill: #ffffff; font-weight: 600; }
+.tile { fill: #f4f3ef; }
+.box { fill: #f4f3ef; stroke: #c3c2b7; }
+.band { fill: #f4f3ef; }
+.arrow { stroke: #52514e; stroke-width: 1.5; fill: none; }
+.head { fill: #52514e; }
+@media (prefers-color-scheme: dark) {
+  text { fill: #f0efec; }
+  .sub { fill: #c3c2b7; }
+  .muted { fill: #a3a199; }
+  .card { fill: #1a1a19; stroke: #383835; }
+  .grid { stroke: #2c2c2a; }
+  .axis { stroke: #383835; }
+  .floor { stroke: #c3c2b7; }
+  .ring { stroke: #1a1a19; }
+  .s1 { fill: #3987e5; }
+  .s2 { fill: #d95926; }
+  .line1 { stroke: #3987e5; }
+  .good { fill: #0ca30c; }
+  .on-bad { fill: #ffffff; }
+  .tile { fill: #262624; }
+  .box { fill: #262624; stroke: #4a4a46; }
+  .band { fill: #222220; }
+  .arrow { stroke: #c3c2b7; }
+  .head { fill: #c3c2b7; }
+}
+</style>
+<rect x="0.5" y="0.5" width="859" height="305" rx="6" class="card"/>
+<text x="24" y="32" class="title">Pass rate with and without injected tool failures</text>
+<text x="24" y="52" class="sub">Same models, cases and seed. 30% of tool calls faulted in the second run.</text>
+<circle cx="31" cy="76" r="5.5" class="s1"/>
+<text x="43" y="80">no faults</text>
+<circle cx="124" cy="76" r="5.5" class="s2"/>
+<text x="136" y="80">30% fault rate</text>
+<text x="650" y="94" class="muted">pass^3</text>
+<text x="734" y="94" class="muted">faults met</text>
+<line x1="170" y1="106" x2="170" y2="244" class="axis"/>
+<text x="170" y="261" class="muted" text-anchor="middle">0%</text>
+<line x1="282.5" y1="106" x2="282.5" y2="244" class="grid"/>
+<text x="282.5" y="261" class="muted" text-anchor="middle">25%</text>
+<line x1="395" y1="106" x2="395" y2="244" class="grid"/>
+<text x="395" y="261" class="muted" text-anchor="middle">50%</text>
+<line x1="507.5" y1="106" x2="507.5" y2="244" class="grid"/>
+<text x="507.5" y="261" class="muted" text-anchor="middle">75%</text>
+<line x1="620" y1="106" x2="620" y2="244" class="grid"/>
+<text x="620" y="261" class="muted" text-anchor="middle">100%</text>
+<text x="24" y="125" class="mono">baseline</text>
+<line x1="620" y1="121" x2="395" y2="121" class="link"/>
+<circle cx="620" cy="121" r="5.5" class="s1 ring"/>
+<circle cx="395" cy="121" r="5.5" class="s2 ring"/>
+<text x="650" y="125">100% to 50%</text>
+<text x="734" y="125">6</text>
+<text x="24" y="161" class="mono">sloppy-router</text>
+<line x1="320" y1="157" x2="320" y2="157" class="link"/>
+<circle cx="320" cy="157" r="5.5" class="s1 ring"/>
+<circle cx="320" cy="157" r="5.5" class="s2 ring"/>
+<text x="650" y="161">33% to 33%</text>
+<text x="734" y="161">0</text>
+<text x="24" y="197" class="mono">fenced-json</text>
+<line x1="620" y1="193" x2="395" y2="193" class="link"/>
+<circle cx="620" cy="193" r="5.5" class="s1 ring"/>
+<circle cx="395" cy="193" r="5.5" class="s2 ring"/>
+<text x="650" y="197">100% to 50%</text>
+<text x="734" y="197">6</text>
+<text x="24" y="233" class="mono">refund-happy</text>
+<line x1="507.5" y1="229" x2="395" y2="229" class="link"/>
+<circle cx="507.5" cy="229" r="5.5" class="s1 ring"/>
+<circle cx="395" cy="229" r="5.5" class="s2 ring"/>
+<text x="650" y="233">75% to 50%</text>
+<text x="734" y="233">6</text>
+<text x="24" y="288" class="sub">Recovered from 0 of 18 faults. The cause is the example agent: it crashes on an empty tool response.</text>
+</svg>

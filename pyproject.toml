@@ -60,6 +60,8 @@ slmeval = "slmeval.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/mohitraj3697/slmeval"
+Documentation = "https://github.com/mohitraj3697/slmeval/tree/main/docs"
+Changelog = "https://github.com/mohitraj3697/slmeval/blob/main/CHANGELOG.md"
 Issues = "https://github.com/mohitraj3697/slmeval/issues"
 
 [tool.hatch.version]

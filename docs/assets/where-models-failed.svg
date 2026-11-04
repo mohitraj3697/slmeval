@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="824" height="312" viewBox="0 0 824 312" role="img">
+<title>Where each model failed</title>
+<desc>sloppy-router failed 6 times at order_lookup; refund-happy failed 3 times at policy_check</desc>
+<style>
+text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size: 13px; fill: #0b0b0b; }
+.mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace; font-size: 12.5px; }
+.title { font-size: 15px; font-weight: 600; }
+.sub { fill: #52514e; }
+.muted { fill: #6f6d68; font-size: 12px; }
+.card { fill: #fcfcfb; stroke: #e1e0d9; }
+.grid { stroke: #e1e0d9; stroke-width: 1; }
+.axis { stroke: #c3c2b7; stroke-width: 1; }
+.floor { stroke: #52514e; stroke-width: 1.5; }
+.ring { stroke: #fcfcfb; stroke-width: 2; }
+.s1 { fill: #2a78d6; }
+.s2 { fill: #eb6834; }
+.line1 { stroke: #2a78d6; stroke-width: 2; stroke-linecap: round; }
+.link { stroke: #898781; stroke-width: 2; stroke-linecap: round; }
+.good { fill: #0a860a; }
+.bad { fill: #d03b3b; }
+.on-bad { fill: #ffffff; font-weight: 600; }
+.tile { fill: #f4f3ef; }
+.box { fill: #f4f3ef; stroke: #c3c2b7; }
+.band { fill: #f4f3ef; }
+.arrow { stroke: #52514e; stroke-width: 1.5; fill: none; }
+.head { fill: #52514e; }
+@media (prefers-color-scheme: dark) {
+  text { fill: #f0efec; }
+  .sub { fill: #c3c2b7; }
+  .muted { fill: #a3a199; }
+  .card { fill: #1a1a19; stroke: #383835; }
+  .grid { stroke: #2c2c2a; }
+  .axis { stroke: #383835; }
+  .floor { stroke: #c3c2b7; }
+  .ring { stroke: #1a1a19; }
+  .s1 { fill: #3987e5; }
+  .s2 { fill: #d95926; }
+  .line1 { stroke: #3987e5; }
+  .good { fill: #0ca30c; }
+  .on-bad { fill: #ffffff; }
+  .tile { fill: #262624; }
+  .box { fill: #262624; stroke: #4a4a46; }
+  .band { fill: #222220; }
+  .arrow { stroke: #c3c2b7; }
+  .head { fill: #c3c2b7; }
+}
+</style>
+<rect x="0.5" y="0.5" width="823" height="311" rx="6" class="card"/>
+<text x="24" y="32" class="title">Where each model failed</text>
+<text x="24" y="52" class="sub">Executions per agent step, in the order the agent runs them.</text>
+<text x="245" y="88" class="mono" text-anchor="middle">intent_router</text>
+<text x="405" y="88" class="mono" text-anchor="middle">order_lookup</text>
+<text x="565" y="88" class="mono" text-anchor="middle">policy_check</text>
+<text x="725" y="88" class="mono" text-anchor="middle">compose_reply</text>
+<text x="24" y="120" class="mono">baseline</text>
+<rect x="170" y="100" width="150" height="30" rx="4" class="tile"/>
+<text x="219" y="120" class="good">✓</text>
+<text x="233" y="120">12 ok</text>
+<rect x="330" y="100" width="150" height="30" rx="4" class="tile"/>
+<text x="405" y="120" class="muted" text-anchor="middle">no model call</text>
+<rect x="490" y="100" width="150" height="30" rx="4" class="tile"/>
+<text x="565" y="120" class="muted" text-anchor="middle">no model call</text>
+<rect x="650" y="100" width="150" height="30" rx="4" class="tile"/>
+<text x="699" y="120" class="good">✓</text>
+<text x="713" y="120">9 ok</text>
+<text x="24" y="160" class="mono">sloppy-router</text>
+<rect x="170" y="140" width="150" height="30" rx="4" class="tile"/>
+<text x="219" y="160" class="good">✓</text>
+<text x="233" y="160">12 ok</text>
+<rect x="330" y="140" width="150" height="30" rx="4" class="bad"/>
+<text x="405" y="160" class="on-bad" text-anchor="middle">✗ 6 failed</text>
+<rect x="490" y="140" width="150" height="30" rx="4" class="tile"/>
+<text x="565" y="160" class="muted" text-anchor="middle">no model call</text>
+<rect x="650" y="140" width="150" height="30" rx="4" class="tile"/>
+<text x="725" y="160" class="muted" text-anchor="middle">no model call</text>
+<text x="24" y="200" class="mono">fenced-json</text>
+<rect x="170" y="180" width="150" height="30" rx="4" class="tile"/>
+<text x="219" y="200" class="good">✓</text>
+<text x="233" y="200">12 ok</text>
+<rect x="330" y="180" width="150" height="30" rx="4" class="tile"/>
+<text x="405" y="200" class="muted" text-anchor="middle">no model call</text>
+<rect x="490" y="180" width="150" height="30" rx="4" class="tile"/>
+<text x="565" y="200" class="muted" text-anchor="middle">no model call</text>
+<rect x="650" y="180" width="150" height="30" rx="4" class="tile"/>
+<text x="699" y="200" class="good">✓</text>
+<text x="713" y="200">9 ok</text>
+<text x="24" y="240" class="mono">refund-happy</text>
+<rect x="170" y="220" width="150" height="30" rx="4" class="tile"/>
+<text x="219" y="240" class="good">✓</text>
+<text x="233" y="240">12 ok</text>
+<rect x="330" y="220" width="150" height="30" rx="4" class="tile"/>
+<text x="405" y="240" class="muted" text-anchor="middle">no model call</text>
+<rect x="490" y="220" width="150" height="30" rx="4" class="bad"/>
+<text x="565" y="240" class="on-bad" text-anchor="middle">✗ 3 failed</text>
+<rect x="650" y="220" width="150" height="30" rx="4" class="tile"/>
+<text x="699" y="240" class="good">✓</text>
+<text x="713" y="240">6 ok</text>
+<text x="24" y="278" class="muted">order_lookup and policy_check only call tools, so a pass there shows no model call.</text>
+<text x="24" y="296" class="muted">A failure stops the run, so later steps stay empty.</text>
+</svg>

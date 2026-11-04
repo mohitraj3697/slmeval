@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="310" viewBox="0 0 860 310" role="img">
+<title>Pass rate with its 95% interval, by model</title>
+<desc>baseline: 100%, interval 51% to 100%; sloppy-router: 33%, interval 6% to 79%; fenced-json: 100%, interval 51% to 100%; refund-happy: 75%, interval 30% to 95%</desc>
+<style>
+text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size: 13px; fill: #0b0b0b; }
+.mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace; font-size: 12.5px; }
+.title { font-size: 15px; font-weight: 600; }
+.sub { fill: #52514e; }
+.muted { fill: #6f6d68; font-size: 12px; }
+.card { fill: #fcfcfb; stroke: #e1e0d9; }
+.grid { stroke: #e1e0d9; stroke-width: 1; }
+.axis { stroke: #c3c2b7; stroke-width: 1; }
+.floor { stroke: #52514e; stroke-width: 1.5; }
+.ring { stroke: #fcfcfb; stroke-width: 2; }
+.s1 { fill: #2a78d6; }
+.s2 { fill: #eb6834; }
+.line1 { stroke: #2a78d6; stroke-width: 2; stroke-linecap: round; }
+.link { stroke: #898781; stroke-width: 2; stroke-linecap: round; }
+.good { fill: #0a860a; }
+.bad { fill: #d03b3b; }
+.on-bad { fill: #ffffff; font-weight: 600; }
+.tile { fill: #f4f3ef; }
+.box { fill: #f4f3ef; stroke: #c3c2b7; }
+.band { fill: #f4f3ef; }
+.arrow { stroke: #52514e; stroke-width: 1.5; fill: none; }
+.head { fill: #52514e; }
+@media (prefers-color-scheme: dark) {
+  text { fill: #f0efec; }
+  .sub { fill: #c3c2b7; }
+  .muted { fill: #a3a199; }
+  .card { fill: #1a1a19; stroke: #383835; }
+  .grid { stroke: #2c2c2a; }
+  .axis { stroke: #383835; }
+  .floor { stroke: #c3c2b7; }
+  .ring { stroke: #1a1a19; }
+  .s1 { fill: #3987e5; }
+  .s2 { fill: #d95926; }
+  .line1 { stroke: #3987e5; }
+  .good { fill: #0ca30c; }
+  .on-bad { fill: #ffffff; }
+  .tile { fill: #262624; }
+  .box { fill: #262624; stroke: #4a4a46; }
+  .band { fill: #222220; }
+  .arrow { stroke: #c3c2b7; }
+  .head { fill: #c3c2b7; }
+}
+</style>
+<rect x="0.5" y="0.5" width="859" height="309" rx="6" class="card"/>
+<text x="24" y="32" class="title">Pass rate with its 95% interval</text>
+<text x="24" y="52" class="sub">pass^3: share of cases that passed all 3 repeats. Four cases, scripted models.</text>
+<text x="380" y="84" class="muted" text-anchor="middle">gate floor 50%</text>
+<text x="610" y="84" class="muted">pass^3</text>
+<text x="662" y="84" class="muted">95% CI</text>
+<text x="742" y="84" class="muted">lower bound vs floor</text>
+<line x1="170" y1="96" x2="170" y2="248" class="axis"/>
+<text x="170" y="265" class="muted" text-anchor="middle">0%</text>
+<line x1="275" y1="96" x2="275" y2="248" class="grid"/>
+<text x="275" y="265" class="muted" text-anchor="middle">25%</text>
+<line x1="380" y1="96" x2="380" y2="248" class="grid"/>
+<text x="380" y="265" class="muted" text-anchor="middle">50%</text>
+<line x1="485" y1="96" x2="485" y2="248" class="grid"/>
+<text x="485" y="265" class="muted" text-anchor="middle">75%</text>
+<line x1="590" y1="96" x2="590" y2="248" class="grid"/>
+<text x="590" y="265" class="muted" text-anchor="middle">100%</text>
+<line x1="380" y1="96" x2="380" y2="248" class="floor"/>
+<text x="24" y="116" class="mono">baseline</text>
+<line x1="384.246" y1="112" x2="590" y2="112" class="line1"/>
+<circle cx="590" cy="112" r="5.5" class="s1 ring"/>
+<text x="610" y="116">100%</text>
+<text x="662" y="116">51% to 100%</text>
+<text x="742" y="116" class="sub">reference</text>
+<text x="24" y="156" class="mono">sloppy-router</text>
+<line x1="195.827" y1="152" x2="502.783" y2="152" class="line1"/>
+<circle cx="310" cy="152" r="5.5" class="s1 ring"/>
+<text x="610" y="156">33%</text>
+<text x="662" y="156">6% to 79%</text>
+<text x="742" y="156" class="bad">✗</text>
+<text x="756" y="156">below</text>
+<text x="24" y="196" class="mono">fenced-json</text>
+<line x1="384.246" y1="192" x2="590" y2="192" class="line1"/>
+<circle cx="590" cy="192" r="5.5" class="s1 ring"/>
+<text x="610" y="196">100%</text>
+<text x="662" y="196">51% to 100%</text>
+<text x="742" y="196" class="good">✓</text>
+<text x="756" y="196">clears</text>
+<text x="24" y="236" class="mono">refund-happy</text>
+<line x1="296.27" y1="232" x2="570.853" y2="232" class="line1"/>
+<circle cx="485" cy="232" r="5.5" class="s1 ring"/>
+<text x="610" y="236">75%</text>
+<text x="662" y="236">30% to 95%</text>
+<text x="742" y="236" class="bad">✗</text>
+<text x="756" y="236">below</text>
+<text x="24" y="292" class="sub">refund-happy also called a forbidden tool, which fails the gate at any pass rate.</text>
+</svg>
