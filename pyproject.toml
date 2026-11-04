@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "slmeval"
+name = "slmeval-cli"
 dynamic = ["version"]
 description = "Benchmark agent workflows across small language models — locally, deterministically, in your terminal."
 readme = "README.md"
@@ -32,7 +32,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-# Core stays deliberately small: `pip install slmeval` must finish in seconds and
+# Core stays deliberately small: `pip install slmeval-cli` must finish in seconds and
 # must never pull in a model framework. Framework support lives in extras.
 dependencies = [
     "typer>=0.12",

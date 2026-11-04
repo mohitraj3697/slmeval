@@ -8,7 +8,8 @@ contracts. Any change to them is listed here as breaking.
 
 ## [0.1.0] - 2026-11-04
 
-First release.
+First release, published on PyPI as `slmeval-cli`. The command and the Python import are
+both `slmeval`.
 
 ### Harness
 

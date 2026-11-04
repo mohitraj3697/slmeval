@@ -149,7 +149,7 @@ jobs:
           python-version: "3.11"
 
       # `pytest` runs against the working tree and so proves nothing about what
-      # `pip install slmeval` ships. This builds the wheel, installs it into a
+      # `pip install slmeval-cli` ships. This builds the wheel, installs it into a
       # throwaway venv with nothing else in it, and runs init / validate /
       # doctor / record / run / report as a new user would.
       - name: Build and use the wheel

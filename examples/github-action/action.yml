@@ -46,10 +46,10 @@ inputs:
     default: ""
   version:
     description: >-
-      What to pip install. A version spec ("slmeval==0.1.0"), or "." to install
+      What to pip install. A version spec ("slmeval-cli==0.1.0"), or "." to install
       the checked-out repository itself.
     required: false
-    default: slmeval
+    default: slmeval-cli
   python-version:
     description: Python for the runner. 3.11 is the floor.
     required: false

@@ -22,7 +22,7 @@ asserts exactly that — this file and ``agent.py`` produce identical node trace
 by hand, every Tier 2 metric would be measuring the adapter rather than the
 model.
 
-Needs the extra: ``pip install "slmeval[langgraph]"``. Nothing in slmeval's core
+Needs the extra: ``pip install "slmeval-cli[langgraph]"``. Nothing in slmeval's core
 imports LangGraph, and neither does ``agent.py``.
 """
 

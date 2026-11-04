@@ -153,7 +153,7 @@ def json_canonical(value: Any) -> Any:
 # model's.
 #
 # `sqlglot` parses properly and is used when it is importable, but it is not a
-# dependency: a `pip install slmeval` that drags in a SQL parser for a feature
+# dependency: a `pip install slmeval-cli` that drags in a SQL parser for a feature
 # most users never touch is the worse trade. So the fallback below is the path
 # actually exercised on a default install, and it is written to be conservative
 # rather than clever.

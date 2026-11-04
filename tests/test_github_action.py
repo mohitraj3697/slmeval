@@ -339,3 +339,20 @@ def test_the_pull_request_comment_asks_for_the_permission_it_needs() -> None:
     for path in (WORKFLOW, DEMO):
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
         assert document["permissions"]["pull-requests"] == "write", path.name
+
+
+def test_the_install_name_is_the_published_one() -> None:
+    """PyPI refused `slmeval` as too close to `slm-eval`, so the package is
+    `slmeval-cli`. A bare `pip install slmeval` fails, or in time could install
+    somebody else's package."""
+    import tomllib
+
+    yaml = pytest.importorskip("yaml")
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+    assert action["inputs"]["version"]["default"] == project["name"]
+
+    bare = re.compile(r"""pip install ["']?slmeval(?![\w-])""")
+    for path in [README, *GUIDES, RELEASING, CONTRIBUTING, EXAMPLE_README, JUDGE_README]:
+        found = bare.search(path.read_text(encoding="utf-8"))
+        assert found is None, f"{path.name} says {found.group()!r}"

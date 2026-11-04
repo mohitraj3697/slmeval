@@ -24,7 +24,7 @@ not recognise one. An adapter that quietly attributed every call to ``None``
 would print a flat scorecard, which reads as a finding rather than as a bug.
 
 LangGraph itself is never imported here. It is an optional extra
-(``pip install "slmeval[langgraph]"``), the core must install in seconds
+(``pip install "slmeval-cli[langgraph]"``), the core must install in seconds
 without a model framework, and the only thing this file needs to know is that
 a builder has named nodes holding callables.
 

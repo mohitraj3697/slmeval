@@ -85,7 +85,7 @@ entrypoint = "slmeval_target:run_case"
 #             steps with `with slmeval.node("name")`
 # "langgraph" you hand the builder to slmeval and mark nothing:
 #               builder = slmeval.instrument_langgraph(StateGraph(State))
-#             Needs the extra: pip install "slmeval[langgraph]"
+#             Needs the extra: pip install "slmeval-cli[langgraph]"
 adapter = "generic"
 
 

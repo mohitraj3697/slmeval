@@ -46,7 +46,7 @@ def _encoder() -> Any:
     """cl100k_base if tiktoken happens to be installed, else None.
 
     tiktoken is deliberately not a core dependency: it is a Rust wheel and a
-    download, and `pip install slmeval` has to stay fast. It is a stand-in
+    download, and `pip install slmeval-cli` has to stay fast. It is a stand-in
     anyway - no local model uses the OpenAI tokenizer - so the estimate is
     marked as an estimate either way.
     """

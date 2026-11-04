@@ -22,7 +22,7 @@ Nothing here touches the network or a model server. `doctor` is allowed to exit
 other command must exit 0.
 
     python scripts/install_smoke.py                 # build the wheel, then test it
-    python scripts/install_smoke.py --wheel dist/slmeval-0.1.0-py3-none-any.whl
+    python scripts/install_smoke.py --wheel dist/slmeval_cli-0.1.0-py3-none-any.whl
     python scripts/install_smoke.py --keep          # leave the temp dir for poking at
 """
 
@@ -176,7 +176,7 @@ def build_wheel() -> Path:
         run([sys.executable, "-m", "pip", "install", "--quiet", "build"], cwd=REPO)
         run([sys.executable, "-m", "build", "--wheel"], cwd=REPO)
 
-    wheels = sorted((REPO / "dist").glob("slmeval-*.whl"), key=lambda p: p.stat().st_mtime)
+    wheels = sorted((REPO / "dist").glob("slmeval_cli-*.whl"), key=lambda p: p.stat().st_mtime)
     if not wheels:
         raise Failed("no wheel in dist/ after building one")
     return wheels[-1]

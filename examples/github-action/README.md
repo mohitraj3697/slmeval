@@ -86,7 +86,7 @@ max_regression = 0.05
 |---|---|---|
 | `working-directory` | `.` | Where `eval.toml` lives |
 | `config` | | An `eval.toml` somewhere else |
-| `version` | `slmeval` | pip requirement. `.` installs the checkout. |
+| `version` | `slmeval-cli` | pip requirement. `.` installs the checkout. |
 | `python-version` | `3.11` | |
 | `cassettes` | | A committed cassette file to use |
 | `cache` | `true` | Restore and save `.slmeval/` through `actions/cache` |

@@ -1,7 +1,7 @@
 # slmeval
 
 [![CI](https://github.com/mohitraj3697/slmeval/actions/workflows/ci.yml/badge.svg)](https://github.com/mohitraj3697/slmeval/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/slmeval)](https://pypi.org/project/slmeval/)
+[![PyPI](https://img.shields.io/pypi/v/slmeval-cli)](https://pypi.org/project/slmeval-cli/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/mohitraj3697/slmeval/blob/main/pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](https://github.com/mohitraj3697/slmeval/blob/main/LICENSE)
 
@@ -34,7 +34,7 @@ also swap the model on a single step and leave the rest of the agent alone.
 ```bash
 git clone https://github.com/mohitraj3697/slmeval
 cd slmeval/examples/support_agent
-pip install slmeval
+pip install slmeval-cli
 slmeval record
 slmeval run
 ```
@@ -42,6 +42,9 @@ slmeval run
 This takes under a minute and needs no API key or GPU. `record` runs the agent's
 tools against an in-memory stand-in for an order system. `run` replays them against
 four models.
+
+The package is `slmeval-cli` on PyPI. The command and the Python import are both
+`slmeval`. `slm-eval` on PyPI is a different project.
 
 ## What the demo shows
 
@@ -109,7 +112,7 @@ shows what fault injection is for.
 Install it and create a starter config:
 
 ```bash
-pip install slmeval
+pip install slmeval-cli
 slmeval init
 slmeval doctor
 ```

@@ -6,14 +6,17 @@ This guide connects slmeval to your own agent. To see it working first, run the
 ## Install
 
 ```bash
-pip install slmeval
+pip install slmeval-cli
 ```
+
+The package is `slmeval-cli` on PyPI, and the command and Python import are both
+`slmeval`. `slm-eval` on PyPI is a different project.
 
 Python 3.11 or newer. The core package has four direct dependencies and no model
 framework. The LangGraph adapter is an extra:
 
 ```bash
-pip install "slmeval[langgraph]"
+pip install "slmeval-cli[langgraph]"
 ```
 
 You only need that extra for `instrument_langgraph`. You can benchmark a LangGraph

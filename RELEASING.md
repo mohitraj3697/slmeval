@@ -62,7 +62,7 @@ Check the release from a clean environment. `doctor` exits 3 on a machine with n
 which is expected.
 
 ```bash
-pip install slmeval
+pip install slmeval-cli
 ```
 
 ```bash

@@ -450,7 +450,7 @@ async def test_a_real_langgraph_graph_produces_the_same_trajectory() -> None:
     """The same assertions as the stub, against the library itself.
 
     Skipped when the extra is not installed, which is the normal state of the
-    offline suite - `pip install slmeval` must not pull in a model framework.
+    offline suite - `pip install slmeval-cli` must not pull in a model framework.
     CI installs the extra for this one test.
     """
     pytest.importorskip("langgraph")
