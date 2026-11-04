@@ -4,7 +4,7 @@ $ slmeval report --format table
 
 
   teardown-01-support-agent · 4 cases x 3 runs · replay · no faults · seed 42 · throughput
-  20261104-125654-aec465 · c1e1fde-dirty · dataset 04017f688c30edda
+  20261104-132411-f03bae · ab7d356 · dataset 04017f688c30edda
 
   ✗ FORBIDDEN tool call: issue_refund in refund_needs_confirmation (refund-happy), 3x
   ! 3 execution(s) across 1 candidate/case pair(s) explored paths the cassettes do not cover 
