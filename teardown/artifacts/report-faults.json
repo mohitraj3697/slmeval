@@ -5,16 +5,16 @@ $ slmeval report --format json
 {
   "schema": "slmeval.report/1",
   "run": {
-    "run_id": "20261104-132423-f3f190",
+    "run_id": "20261104-150922-55f75e",
     "name": "teardown-01-support-agent",
-    "started_at": "2026-11-04T07:54:23.242797+00:00",
-    "finished_at": "2026-11-04T07:54:23.525181+00:00",
+    "started_at": "2026-11-04T09:39:22.264519+00:00",
+    "finished_at": "2026-11-04T09:39:22.708949+00:00",
     "status": "completed",
     "slmeval_version": "0.1.0",
     "config_hash": "9a79ea80e90213ac",
     "dataset_hash": "04017f688c30edda",
     "dataset_path": "examples/support_agent/golden_cases.jsonl",
-    "git_sha": "ab7d356",
+    "git_sha": "6f82371",
     "mode": "replay",
     "scheduling": "throughput",
     "latency_reportable": false,
@@ -423,7 +423,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.0066000114505489664,
+      "mean_latency_ms": 0.007900011648113528,
       "prompt_tokens": 183,
       "completion_tokens": 81
     },
@@ -436,7 +436,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.007874996905835966,
+      "mean_latency_ms": 0.008949997815458724,
       "prompt_tokens": 717,
       "completion_tokens": 276
     },
@@ -449,7 +449,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.0005999948674192032,
+      "mean_latency_ms": 0.0005666709815462431,
       "prompt_tokens": 411,
       "completion_tokens": 90
     },
@@ -462,7 +462,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.0006083331148450574,
+      "mean_latency_ms": 0.000750000860231618,
       "prompt_tokens": 3780,
       "completion_tokens": 387
     },
@@ -475,7 +475,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.00476667385858794,
+      "mean_latency_ms": 0.005866653130700191,
       "prompt_tokens": 183,
       "completion_tokens": 81
     },
@@ -488,7 +488,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.006266663452455153,
+      "mean_latency_ms": 0.00896666218371441,
       "prompt_tokens": 717,
       "completion_tokens": 276
     },
@@ -501,7 +501,7 @@ $ slmeval report --format json
       "errors": 0,
       "schema_valid_rate": 1.0,
       "repair_attempts": 0,
-      "mean_latency_ms": 0.005841667492253085,
+      "mean_latency_ms": 0.008475006325170398,
       "prompt_tokens": 717,
       "completion_tokens": 273
     }
