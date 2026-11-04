@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "slmeval-cli"
 dynamic = ["version"]
-description = "Benchmark agent workflows across small language models — locally, deterministically, in your terminal."
+description = "Benchmark agent workflows across small language models, locally, from your terminal."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }

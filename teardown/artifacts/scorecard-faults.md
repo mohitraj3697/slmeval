@@ -4,7 +4,7 @@ $ slmeval report --format md
 
 ### teardown-01-support-agent
 
-`20261104-210202-579428` · 4 cases x 3 runs · replay · seed 42 · dataset `04017f688c30edda`
+`20261104-211029-94ef07` · 4 cases x 3 runs · replay · seed 42 · dataset `04017f688c30edda`
 
 - **3 execution(s) across 1 candidate/case pair(s) explored paths the cassettes do not cover (refund_needs_confirmation) - excluded from pass rates rather than counted against the candidate; re-run `slmeval record --fill-gaps`**
 - **fenced-json needed json_mode on 100% of structured calls**

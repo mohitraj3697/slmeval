@@ -216,8 +216,8 @@ slmeval run --serial-latency --case status_plain --case status_long --case refun
 ```
 
 On version 0.1.0, `slmeval record` exits 4 here and says 4 cases were not recorded. That message
-is wrong: they were recorded, and the baseline failed them. It's fixed in the next release, and
-`slmeval run` works either way.
+is wrong: they were recorded, and the baseline failed them. It's fixed in 0.1.1, and `slmeval run`
+works either way.
 
 The full run took 78 minutes here. Model digests were `qwen2.5:7b` `845dbda0ea48`, `llama3.2:3b`
 `a80c4f17acd5` and `gemma3:4b` `68ceab7e468a`. Your numbers can differ with the model version, your

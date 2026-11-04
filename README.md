@@ -207,7 +207,7 @@ request:
 
 ## Status
 
-Alpha. Version 0.1.0 works end to end, and the exit codes and JSON report schema are
+Alpha. Version 0.1.1 works end to end, and the exit codes and JSON report schema are
 treated as stable.
 
 - **Providers:** OpenAI, Ollama, anything that speaks `/v1/chat/completions`, and a
@@ -215,8 +215,8 @@ treated as stable.
 - **Not built yet:** `slmeval compare`, `slmeval cassette`, a native Anthropic provider
   and time-to-first-token measurement.
 - **Results for real models are limited so far.** Teardown #1 uses scripted models.
-  [Teardown #2](teardown-02/README.md) runs three local models on one laptop, with a
-  local model as the baseline. If you run your own,
+  [Teardown #2](https://github.com/mohitraj3697/slmeval/tree/main/teardown-02) runs three
+  local models on one laptop, with a local model as the baseline. If you run your own,
   [share the result](https://github.com/mohitraj3697/slmeval/issues/new?template=benchmark_result.yml).
 
 slmeval sends no telemetry. Its only network traffic is to the model endpoints you

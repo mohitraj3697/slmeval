@@ -6,19 +6,24 @@ minor release can change the CLI and the stored schema.
 The exit codes of `slmeval gate` and the `schema` field of the JSON report are public
 contracts. Any change to them is listed here as breaking.
 
-## [Unreleased]
+## [0.1.1] - 2026-11-04
+
+**Exit code change:** `slmeval record` now exits 0 instead of 4 when the agent ran to the end and
+only failed an assertion. Exit 4 still means insufficient coverage, and that is now the only time
+`record` uses it. The exit codes of `slmeval gate` and the report `schema` didn't change.
 
 ### Fixed
 
 - `slmeval record` no longer reports a case as "not recorded" when the agent ran to the end and
-  only failed an assertion. It now exits 0 for those cases and says the baseline failed them. It
-  also warns that a forbidden tool really ran during recording. A case that stops early still
-  exits 4.
+  only failed an assertion. It says the baseline failed those cases, and warns that a forbidden
+  tool really ran during recording. A case that stops early still exits 4.
 - The per-node recommendation no longer says to keep the baseline on a node the candidate didn't
   change. When a failure surfaces in such a node, it points at the nodes the candidate did change.
 
 ### Changed
 
+- The package summary on PyPI no longer says "deterministically". Tools are replayed
+  deterministically, but the models aren't.
 - Shorter wording for the note that latency isn't measured in throughput mode.
 - The example support agent accepts lowercase order ids and has more orders. Its reply step now
   receives the delivery date, the policy reason and whether a refund was issued.
