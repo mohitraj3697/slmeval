@@ -155,7 +155,7 @@ jobs:
       - name: Build and use the wheel
         run: python scripts/install_smoke.py
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: wheel-${{ matrix.os }}
