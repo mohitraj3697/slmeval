@@ -32,7 +32,7 @@ Three things are deliberately *not* in the key:
 
 ``tool_version``
     An edited tool makes its old cassettes stale, and staleness should be
-    *flagged* by ``slmeval cassette verify``, not turn into a wall of misses
+    *flagged* by a warning on replay, not turn into a wall of misses
     that looks like the model fell apart.
 ``dataset_hash``
     Same reasoning; it is a stored column, used for provenance.
@@ -68,7 +68,7 @@ KEY_VERSION: Final = "k1"
 """Bumped if canonicalization ever changes.
 
 In the hash, so cassettes written under the old scheme miss cleanly and
-`cassette verify` can say "re-record" instead of every call silently matching
+can be re-recorded, instead of every call silently matching
 the wrong payload.
 """
 

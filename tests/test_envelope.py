@@ -316,7 +316,7 @@ def test_decoding_a_class_that_no_longer_exists_says_so() -> None:
     with pytest.raises(EnvelopeDecodeError) as caught:
         decode(stale)
     assert "Deleted" in str(caught.value)
-    assert "cassette verify" in (caught.value.hint or "")
+    assert "slmeval record" in (caught.value.hint or "")
 
 
 def test_decoding_a_module_that_no_longer_exists_says_so() -> None:

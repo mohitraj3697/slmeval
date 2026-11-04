@@ -96,7 +96,7 @@ verdict to the pull request.
 
 ### Not in this release
 
-`slmeval compare` and `slmeval cassette ls|verify|prune` appear in `--help` and
-exit 2 with the step that delivers them. The `anthropic` provider is not built
+`slmeval compare` and `slmeval cassette ls|verify|prune` are not built. They are
+hidden from `--help` and exit 2 with a message if called. The `anthropic` provider is not built
 (reach Claude through an OpenAI-compatible gateway), and there is no
 time-to-first-token measurement.

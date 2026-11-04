@@ -1,11 +1,11 @@
 # slmeval
 
-**Prove a 4B model can do the boring 80% of your agent before you ship it.**
+**Find out which steps of your agent a small model can handle, before you ship it.**
 
-Your agent calls a frontier model at every step. Some of those steps are intent
-routing, field extraction and formatting — work a 4B model does for 2% of the
-price. The reason nobody downsizes is that there is no way to prove the small
-model won't break step 7 of a 10-step tool-calling loop.
+Your agent calls a frontier model at every step. Some of those steps may be
+simple enough for a much cheaper small model: intent routing, field extraction,
+formatting. The hard part is knowing the small model won't break step 7 of a
+10-step tool-calling loop.
 
 `slmeval` records your agent's tool calls once, replays them deterministically
 against every candidate model, and prints what each swap actually costs you.
@@ -113,10 +113,10 @@ A worked example lives in [`examples/support_agent/`](examples/support_agent):
 four nodes, five sandboxed tools, no framework, and tools that return
 `datetime`, `Decimal` and `StrEnum` values so the round trip is actually tested.
 
-`compare` and `cassette` are scaffolded and listed in `--help`, but not
-implemented yet — they say which step delivers them when you call them.
-Everything they need is already stored: a run's rows carry the provenance
-`compare` has to check and the cassette keys `cassette verify` has to walk.
+`compare` and `cassette` are not in this release, so they are left out of
+`--help` and exit 2 with a message if you call them. Everything they need is
+already stored: a run's rows carry the provenance `compare` has to check and the
+cassette keys `cassette verify` has to walk.
 
 Two numbers in that table are worth reading twice. `pass^3` is the fraction of
 cases that passed **every** repeat, not an average — an agent you cannot retry

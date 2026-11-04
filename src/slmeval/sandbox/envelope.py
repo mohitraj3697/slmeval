@@ -106,8 +106,7 @@ class EnvelopeDecodeError(SlmevalError):
             hint=hint
             or (
                 "This cassette was recorded against code that has since changed. "
-                "Re-record the affected cases, or run `slmeval cassette verify` to "
-                "list every cassette whose tool or payload no longer matches your source."
+                "Re-record the affected cases with `slmeval record --case <id>`."
             ),
         )
 

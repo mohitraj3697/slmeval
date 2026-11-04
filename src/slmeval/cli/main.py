@@ -1,7 +1,7 @@
 """CLI entrypoint.
 
-Commands are registered in the order they should appear in `--help`: the three
-that work today, then the planned ones.
+Commands are registered in the order they should appear in `--help`. The planned
+ones come last and stay hidden from it.
 """
 
 from __future__ import annotations

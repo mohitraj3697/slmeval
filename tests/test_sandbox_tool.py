@@ -345,7 +345,7 @@ async def test_replaying_a_cassette_for_edited_code_is_flagged(store: CassetteSt
         assert await fetch_order_v2("ORD-1") == {"ok": True}
 
     assert ctx.tool_calls[-1].outcome == "replayed"
-    assert any("cassette verify" in w for w in ctx.warnings)
+    assert any("slmeval record" in w for w in ctx.warnings)
 
 
 # --------------------------------------------------------------------------- #

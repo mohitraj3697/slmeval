@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner, Result
 
+import slmeval
 from slmeval import __version__, exit_codes
 from slmeval.cli.main import app
 from tests.conftest import MINIMAL_CONFIG, write_config
@@ -271,6 +272,24 @@ def test_planned_commands_explain_themselves(command: str) -> None:
     result = runner.invoke(app, [command])
     assert result.exit_code == exit_codes.USAGE
     assert "not implemented yet" in text_of(result)
+
+
+@pytest.mark.parametrize("command", ["compare", "cassette"])
+def test_planned_commands_are_not_offered_in_help(command: str) -> None:
+    out = text_of(runner.invoke(app, ["--help"]))
+    assert not any(line.strip("|│ ").startswith(command) for line in out.splitlines())
+
+
+def test_no_message_points_at_a_command_that_does_not_exist() -> None:
+    """Hiding a stub is no use if the tool still tells people to run it."""
+    root = Path(slmeval.__file__).parent
+    for path in root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for command in ("slmeval cassette", "slmeval compare"):
+            for line in text.splitlines():
+                stripped = line.strip()
+                if command in stripped and stripped.startswith(("f\"", "\"", "'")):
+                    raise AssertionError(f"{path.name} tells users to run: {stripped}")
 
 
 def test_planned_commands_tolerate_arguments() -> None:

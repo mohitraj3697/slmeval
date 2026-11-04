@@ -211,7 +211,7 @@ def _source_version(fn: Callable[..., Any]) -> str:
     """A hash of the tool's source, used to flag stale cassettes.
 
     Not part of the cassette key: an edited tool should be *reported* as stale
-    by ``slmeval cassette verify``, not turn into a wall of misses that reads
+    by a warning on replay, not turn into a wall of misses that reads
     like the model fell apart. Unavailable source (a C function, a REPL) yields
     an empty version, which disables staleness checking rather than guessing.
     """
@@ -304,7 +304,7 @@ def _note_degraded(ctx: RunContext, tool: SandboxedTool, hit: Hit) -> None:
     ):
         ctx.warn(
             f"{tool.name}: replayed a cassette recorded for a different version of "
-            "this tool - run `slmeval cassette verify`"
+            "this tool - re-record it with `slmeval record`"
         )
 
 
