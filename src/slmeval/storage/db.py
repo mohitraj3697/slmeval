@@ -762,7 +762,7 @@ class RunStore:
         """Every stored metric for a run, joined to the cell it describes."""
         sql = (
             "SELECT e.candidate_id, e.case_id, e.repeat_idx, e.exec_id, e.outcome_class, "
-            "       v.tier, v.metric, v.value_num, v.value_text "
+            "       v.tier, v.metric, v.value_num, v.value_text, v.detail_json "
             "FROM evaluations v JOIN executions e ON e.exec_id = v.exec_id "
             "WHERE e.run_id = ?"
         )
@@ -781,6 +781,7 @@ class RunStore:
                 metric=str(r["metric"]),
                 value_num=None if r["value_num"] is None else float(r["value_num"]),
                 value_text=r["value_text"],
+                detail_json=r["detail_json"],
                 outcome=_enum(Outcome, r["outcome_class"], Outcome.UNCLASSIFIED),
             )
             for r in self._conn().execute(sql, params).fetchall()

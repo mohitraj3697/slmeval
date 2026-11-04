@@ -454,14 +454,18 @@ class Tier2:
                     detail=self.alignment.as_dict(),
                 )
             )
+        # The baseline's first run of a case sets the reference, so it has nothing
+        # to be compared with. Scoring it against an empty reference would give
+        # the run everything else is measured by a tool precision of 0.
+        compared = self.reference_steps is not None
         for name, value in (
             ("tool_precision", self.tools.precision),
             ("tool_recall", self.tools.recall),
             ("tool_f1", self.tools.f1),
         ):
-            if value is not None:
+            if compared and value is not None:
                 out.append(Metric(TIER, name, value))
-        if self.tools.reference_calls or self.tools.candidate_calls:
+        if compared and (self.tools.reference_calls or self.tools.candidate_calls):
             out.append(
                 Metric(
                     TIER,

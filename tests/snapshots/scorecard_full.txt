@@ -3,17 +3,17 @@
 
   !! 4 execution(s) across 2 candidate/case pair(s) explored paths the cassettes do not cover (status_other) -
 excluded from pass rates rather than counted against the candidate; re-run `slmeval record --fill-gaps`
-  !! fenced-json needed json_mode on 67% of structured calls
+  !! fenced-json needed json_mode on 100% of structured calls
   !! fenced-json needed prompt-repair or a fallback rung on 100% of structured calls
   !! some token counts were estimated, not reported by the provider - figures built from them are marked ~
   -- latency not measured in this mode - requests ran concurrently, so a p95 would describe the scheduler
 rather than the model (re-run with --serial-latency)
 
-Candidate            pass^2         95% CI    runs    Schema    Tool F1    Steps      $/case    d Cost
-baseline baseline    100.0%    [34%, 100%]     4/4      100%       1.00      3.0    ~$0.0000         -
-fenced-json          100.0%    [21%, 100%]     2/2        0%       1.00      2.5    ~$0.0000         -
-sloppy-router          0.0%      [0%, 79%]     0/2      100%       1.00      2.0    ~$0.0000         -
-prose-only             0.0%      [0%, 66%]     0/4        0%          -      1.0     $0.0000         -
+Candidate        pass^2         95% CI    runs    Schema    Tool F1    Steps      $/case    d Cost
+baseline         100.0%    [34%, 100%]     4/4      100%       1.00      3.0    ~$0.0000         -
+fenced-json      100.0%    [21%, 100%]     2/2        0%       1.00      2.5    ~$0.0000         -
+sloppy-router      0.0%      [0%, 79%]     0/2      100%       1.00      2.0    ~$0.0000         -
+prose-only         0.0%      [0%, 66%]     0/4        0%          -      1.0     $0.0000         -
 
 per-node attribution
 Node             baseline    fenced-json    sloppy-router    prose-only

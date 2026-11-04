@@ -131,6 +131,11 @@ def faulted_run() -> tuple[Artifact, ...]:
             "the table under faults, where the recovery rate appears",
         ),
         Artifact(
+            "report-faults.json",
+            ("report", "--format", "json"),
+            "every number in that table, for the charts and for checking our arithmetic",
+        ),
+        Artifact(
             "failures-faults.txt",
             ("show", "run", "--failed", "--limit", "0"),
             "finding 4: every fault took the agent down with a KeyError",
@@ -183,11 +188,17 @@ VOLATILE: tuple[tuple[str, str], ...] = (
     (r"\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00", "<timestamp>"),
     (r'("git_sha": ")[^"]*', r"\1<git-sha>"),
     # Clean or dirty: the stamp changes with every commit, so leaving a clean one
-    # unmasked would fail this check on all of them.
-    (r"(?m)(· )[0-9a-f]{7,40}(?:-dirty)?(?= ·|\s*$)", r"\1<git-sha>"),
+    # unmasked would fail this check on all of them. Removed rather than replaced,
+    # because a source archive has no git history and prints no stamp at all.
+    (r"(?m) · [0-9a-f]{7,40}(?:-dirty)?(?= ·|\s*$)", ""),
     (r'("[a-z0-9_]*_ms": )(?:[\d.]+|null)', r"\1<ms>"),
     (r"(\s)\d+(?:\.\d+)?(\s*ms\b)", r"\1<ms>\2"),
     (r'("(?:cpus|machine|os|release|python|implementation)": )("?[^",}]*"?)', r"\1<host>"),
+    # The ms column of `show exec`'s model-call table. It has no unit beside the
+    # number, so the pattern above misses it, and a loaded runner prints 13 for 0.
+    (r"(?m)^(\d+ +\S+ +\S+ +\S+ +\S+ +\S+) +[\d,]+[ \t]*$", r"\1 <ms>"),
+    # A larger number can widen that column, so spacing is not evidence either.
+    (r"[ \t]+", " "),
 )
 """What differs between two correct runs of the same matrix, and is therefore
 not evidence of anything.

@@ -30,7 +30,7 @@ from slmeval.report.export import (
     to_junit,
     to_markdown,
 )
-from slmeval.report.model import LATENCY_DISCLAIMER, build_scorecard
+from slmeval.report.model import LATENCY_DISCLAIMER, _histogram, build_scorecard
 from slmeval.report.scorecard import (
     render_rollups,
     render_scorecard,
@@ -38,11 +38,11 @@ from slmeval.report.scorecard import (
     table,
 )
 from slmeval.storage.db import RunStore
-from slmeval.storage.models import Outcome
+from slmeval.storage.models import MetricSample, Outcome
 from tests.test_runner import MODULE, build
 
 HEADER = (
-    "Candidate            pass^2         95% CI    runs    Schema    Tool F1    "
+    "Candidate    pass^2         95% CI    runs    Schema    Tool F1    "
     "Steps      $/case    d Cost"
 )
 
@@ -456,3 +456,25 @@ def test_an_unknown_export_format_is_refused(card) -> None:  # type: ignore[no-u
 
     with pytest.raises(ValueError, match="unknown export format"):
         export(card, "yaml")
+
+
+def test_structured_modes_count_calls_not_executions() -> None:
+    """Warnings divide these counts by the number of calls, so they must be calls.
+
+    Counted per execution, a model using json_mode on all 21 of its calls across
+    12 executions was reported as needing it on 57%.
+    """
+    samples = [
+        MetricSample(
+            candidate_id="c",
+            case_id=f"case{i}",
+            repeat_idx=0,
+            exec_id=f"e{i}",
+            tier=1,
+            metric="structured_mode_used",
+            value_text="json_mode",
+            detail_json='{"json_mode": 2}',
+        )
+        for i in range(3)
+    ]
+    assert _histogram(samples) == {"json_mode": 6}

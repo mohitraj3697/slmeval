@@ -77,6 +77,10 @@ RUN_ID = re.compile(r"\d{8}-\d{6}-[0-9a-f]{6}")
 TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?")
 DURATION = re.compile(r"\b\d+(\.\d+)?\s?(ms|s)\b")
 VERSION = re.compile(r"\bv?\d+\.\d+\.\d+\b")
+#: The ms column of the model-call table. It has no unit beside the number, so
+#: DURATION misses it, and a loaded runner prints 13 where a laptop prints 0.
+MODEL_CALL_MS = re.compile(r"(?m)^(\d+ +\S+ +\S+ +\S+ +\S+ +\S+) +[\d,]+[ \t]*$")
+MS_HEADER = re.compile(r"\bjson +ms\b")
 
 
 def render(renderable: object, *, width: int = 110) -> str:
@@ -103,6 +107,8 @@ def without_the_clock(text: str) -> str:
     text = RUN_ID.sub("<run-id>", text)
     text = TIMESTAMP.sub("<timestamp>", text)
     text = VERSION.sub("<version>", text)
+    text = MODEL_CALL_MS.sub(r"\1  <duration>", text)
+    text = MS_HEADER.sub("json  ms", text)
     return DURATION.sub("<duration>", text)
 
 

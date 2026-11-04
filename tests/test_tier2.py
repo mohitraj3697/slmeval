@@ -297,3 +297,14 @@ def test_tier2_without_any_reference_reports_no_distance() -> None:
     assert result.trajectory_distance is None
     assert result.step_delta is None
     assert not any(m.name == "trajectory_distance" for m in result.metrics())
+
+
+def test_a_run_with_no_reference_gets_no_tool_comparison() -> None:
+    """The baseline's first run sets the reference, so it has nothing to match."""
+    result = tier2(
+        tool_calls=[],
+        trajectory=["a"],
+        reference=None,
+    )
+    names = {metric.name for metric in result.metrics()}
+    assert not names & {"tool_precision", "tool_recall", "tool_f1", "tool_overlap"}

@@ -5,9 +5,9 @@
     intent_router -> order_lookup -> compose_reply
 
 model calls
-#    node             schema    mode     repairs    json      ms
-0    intent_router    valid     tools          -    direct     0
-1    compose_reply    valid     tools          -    direct     0
+#    node             schema    mode     repairs    json  ms
+0    intent_router    valid     tools          -    direct  <duration>
+1    compose_reply    valid     tools          -    direct  <duration>
 
 tool calls
 #    tool                                    outcome     tier     fault    node
@@ -31,8 +31,6 @@ tier    metric                     value    detail
    1    tool_calls                     1
    1    tool_name_valid                1
    2    steps                          3
-   2    tool_overlap                   -    extra: fetch_order
-   2    tool_precision                 0
    2    tool_redundancy                0
 
   final answer

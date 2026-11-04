@@ -193,7 +193,7 @@ def _cells(card: Scorecard, row: CandidateReport, *, dash: str) -> list[Renderab
 
 def _name(row: CandidateReport) -> Text:
     out = Text()
-    if row.baseline:
+    if row.baseline and row.candidate_id != "baseline":
         out.append("baseline ", style=DIM)
     out.append(row.candidate_id, style="bold" if row.baseline else "")
     return out

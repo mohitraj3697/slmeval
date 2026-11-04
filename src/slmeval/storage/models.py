@@ -418,6 +418,7 @@ class MetricSample:
     metric: str
     value_num: float | None = None
     value_text: str | None = None
+    detail_json: str | None = None
     outcome: Outcome = Outcome.UNCLASSIFIED
 
 

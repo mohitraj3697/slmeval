@@ -27,6 +27,7 @@ The aggregation rules that are not obvious:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from statistics import median
@@ -502,10 +503,19 @@ def _weighted(
 
 
 def _histogram(samples: Sequence[MetricSample]) -> dict[str, int]:
+    """Call counts per value, summed across executions.
+
+    Each execution stores its own per-call histogram. Counting one vote per
+    execution instead undercounts any agent that makes more than one call, and
+    the warnings divide these counts by the number of calls.
+    """
     out: dict[str, int] = {}
     for sample in samples:
-        if sample.value_text:
-            out[sample.value_text] = out.get(sample.value_text, 0) + 1
+        counts = json.loads(sample.detail_json) if sample.detail_json else {}
+        if not counts and sample.value_text:
+            counts = {sample.value_text: 1}
+        for value, count in counts.items():
+            out[value] = out.get(value, 0) + int(count)
     return out
 
 
