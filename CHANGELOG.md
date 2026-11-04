@@ -9,7 +9,7 @@ is a breaking change even if no Python signature moves: the **exit codes**
 `slmeval gate` returns, which pipelines branch on, and the `schema` field of
 the JSON report, which anything charting a run reads.
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-11-04
 
 First release. `slmeval` records an agent's tool calls once and replays them
 against every candidate model, so a model-swap benchmark runs offline, with no
